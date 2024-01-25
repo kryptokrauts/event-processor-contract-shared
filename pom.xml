@@ -24,6 +24,7 @@
 		<postgresql-testcontainer.version>1.19.3</postgresql-testcontainer.version>
 		<beanutils.version>1.9.4</beanutils.version>
 		<avro-maven-plugin.version>1.11.3</avro-maven-plugin.version>
+		<maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
 	</properties>
 	<dependencyManagement>
 		<dependencies>
@@ -164,6 +165,10 @@
 						</configuration>
 					</execution>
 				</executions>
+			</plugin>
+			<plugin>
+				<artifactId>maven-resources-plugin</artifactId>
+				<version>${maven-resources-plugin.version}</version>
 			</plugin>
 		</plugins>
 	</build>
