@@ -48,14 +48,14 @@ public class DefaultHandler extends BaseHandler {
    *
    * @param event
    */
-  public void handleResetEvent(ResetEvent event) {
+  public void handleResetEvent(ResetEvent event, String context) {
     try {
       BaseHandler.logger.warnf(
           "Handling incoming reset event of type '%s' occurred at blocknum %d",
           event.getReset_type(), event.getReset_blocknum());
 
       reset reset = new reset();
-      reset.setContext("atomicassets");
+      reset.setContext(context);
       reset.setBlocknum(event.getReset_blocknum());
       reset.setTimestamp(event.getTimestamp());
       reset.setDetails(event.getDetails());
