@@ -1,4 +1,4 @@
-package com.kryptokrauts.contract.handlers;
+package com.kryptokrauts.shared.contract.handlers;
 
 import com.kryptokrauts.shared.contract.types.RawEvent;
 import com.kryptokrauts.shared.contract.types.ResetEvent;
