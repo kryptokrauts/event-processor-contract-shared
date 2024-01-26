@@ -6,7 +6,11 @@
 		{
 			"name": "reset_type",
 			"type": ["null","string"]
-		},		
+		},	
+		{
+			"name": "context",
+			"type": "string"
+		},			
 		{
 			"name": "blocknum",
 			"type": "long"
