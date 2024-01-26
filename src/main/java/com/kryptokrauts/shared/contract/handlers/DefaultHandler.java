@@ -1,7 +1,7 @@
 package com.kryptokrauts.contract.handlers;
 
-import com.kryptokrauts.contract.types.RawEvent;
-import com.kryptokrauts.contract.types.ResetEvent;
+import com.kryptokrauts.shared.contract.types.RawEvent;
+import com.kryptokrauts.shared.contract.types.ResetEvent;
 import contracts.event_log;
 import contracts.reset;
 import io.quarkus.runtime.Quarkus;
