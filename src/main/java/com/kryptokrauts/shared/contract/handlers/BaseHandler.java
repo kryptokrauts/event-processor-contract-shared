@@ -1,5 +1,6 @@
 package com.kryptokrauts.shared.contract.handlers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kryptokrauts.contract.types.RawEvent;
 import contracts.realtime_event;
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata;
