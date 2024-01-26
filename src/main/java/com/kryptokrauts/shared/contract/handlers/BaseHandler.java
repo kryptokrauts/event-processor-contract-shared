@@ -26,7 +26,8 @@ public abstract class BaseHandler {
 
   protected static final Logger logger = Logger.getLogger(BaseHandler.class);
 
-  protected void emitRealtimeMessage(RawEvent event, Map<String, Object> dataMap) throws Exception {
+  protected void emitRealtimeMessage(RawEvent event, Map<String, Object> dataMap, String context)
+      throws Exception {
     BaseHandler.logger.debugf(
         "Emitting realtime message for event '%s' at blocknum %d",
         event.getType(), event.getBlocknum());
@@ -34,7 +35,7 @@ public abstract class BaseHandler {
     realtime_event transformed = new realtime_event();
     transformed.setBlocknum(event.getBlocknum());
     transformed.setBlockTimestamp(event.getTimestamp());
-    transformed.setContext("atomicassets");
+    transformed.setContext(context);
     transformed.setType(event.getType());
     transformed.setData(this.objectMapper.writeValueAsString(dataMap));
 
