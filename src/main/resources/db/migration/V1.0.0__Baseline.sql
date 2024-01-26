@@ -25,11 +25,12 @@ CREATE INDEX IF NOT EXISTS atomicassets_event_log_type_data
 
 COMMENT ON TABLE public.atomicassets_event_log IS 'Store all raw actions';
 
-CREATE TABLE IF NOT EXISTS public.atomicassets_reset_log
+CREATE TABLE IF NOT EXISTS public.reset_log
 (
 		id bigserial PRIMARY KEY,		
     blocknum bigint NOT NULL,
     timestamp bigint NOT NULL,
+		context text NOT NULL,
     reset_type text NULL,    
     details text NULL,		
     clean_database boolean NOT NULL,
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_reset_log
 TABLESPACE pg_default;
 
 -- trigger to clean all atomicassets_ tables after clean_after_blocknum
-CREATE OR REPLACE FUNCTION atomicassets_reset_log_clean_after_blocknum_f()
+CREATE OR REPLACE FUNCTION reset_log_clean_after_blocknum_f()
 RETURNS TRIGGER AS $$
 DECLARE
     t_table_name text;
@@ -64,12 +65,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER atomicassets_reset_log_clean_after_blocknum_tr
-AFTER INSERT ON atomicassets_reset_log
+CREATE OR REPLACE TRIGGER reset_log_clean_after_blocknum_tr
+AFTER INSERT ON reset_log
 FOR EACH ROW
-EXECUTE FUNCTION atomicassets_reset_log_clean_after_blocknum_f();
+EXECUTE FUNCTION reset_log_clean_after_blocknum_f();
 
-COMMENT ON TABLE public.atomicassets_reset_log IS 'Store reset events. Whenever an entry is added, the database is cleared after the given blocknum, see similiary named trigger';
+COMMENT ON TABLE public.reset_log IS 'Store reset events. Whenever an entry is added, the database is cleared after the given blocknum, see similiary named trigger';
 
 CREATE TABLE IF NOT EXISTS public.realtime_event
 (
