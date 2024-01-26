@@ -1,0 +1,35 @@
+{
+	"type": "record",
+	"name": "reset",
+	"namespace": "contracts",
+	"fields": [
+		{
+			"name": "reset_type",
+			"type": ["null","string"]
+		},	
+		{
+			"name": "context",
+			"type": "string"
+		},			
+		{
+			"name": "blocknum",
+			"type": "long"
+		},
+		{
+			"name": "timestamp",
+			"type": "long"
+		},		
+		{
+			"name": "details",
+			"type": ["null","string"]
+		},
+		{
+			"name": "clean_database",
+			"type": ["null","boolean"]
+		},		
+		{
+			"name": "clean_after_blocknum",
+			"type": "long"
+		}
+	]
+}
