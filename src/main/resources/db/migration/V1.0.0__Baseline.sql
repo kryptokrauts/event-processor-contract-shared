@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
 		id bigserial PRIMARY KEY,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
-    transaction_id bytea NOT NULL,    
+    transaction_id text NOT NULL,    
     type text NOT NULL,		
     data jsonb NULL    
 )

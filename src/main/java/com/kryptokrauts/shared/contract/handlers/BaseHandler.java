@@ -81,6 +81,14 @@ public abstract class BaseHandler {
     return null;
   }
 
+  protected Integer getSanitizedInt(RawEvent event, String key) {
+    Object value = this.getSanitizedObject(event, key);
+    if (value != null) {
+      return Integer.parseInt(value.toString());
+    }
+    return null;
+  }
+
   protected Double getSanitizedDouble(RawEvent event, String key) {
     Object value = this.getSanitizedObject(event, key);
     if (value != null) {
