@@ -236,9 +236,7 @@ public abstract class BaseTest {
     String actionType = this.createTestMessage(testCase, null);
 
     this.waitForKafkaProcessing(event_log.class, 1l, 0l);
-    EventLogEntity eventLogEntity =
-        this.waitForDatabaseEntity(
-            () -> EventLogEntity.find("type = ?1 order by id desc", actionType).firstResult());
+    EventLogEntity eventLogEntity = getEventLogEntity(actionType);
 
     Assertions.assertEquals(actionType, eventLogEntity.getType());
 
@@ -246,6 +244,8 @@ public abstract class BaseTest {
 
     return actionType;
   }
+
+  protected abstract EventLogEntity getEventLogEntity(String actionType);
 
   /**
    * produce raw kafka event message for given testCase

@@ -1,12 +1,12 @@
 package com.kryptokrauts.shared.entity;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.MappedSuperclass;
 import lombok.Getter;
 
 @Getter
-@Entity(name = "atomicassets_event_log")
+@MappedSuperclass
 public class EventLogEntity extends PanacheEntityBase {
 
   @Id private long id;
