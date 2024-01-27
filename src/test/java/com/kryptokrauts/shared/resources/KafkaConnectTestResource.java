@@ -30,7 +30,8 @@ public class KafkaConnectTestResource implements QuarkusTestResourceLifecycleMan
         new GenericContainer<>("ghcr.io/kryptokrauts/kafka-connect:latest")
             .withEnv("kafka.port", "9092")
             .withCopyFileToContainer(
-                MountableFile.forClasspathResource("/kafka-connect/"), "/opt/bitnami/kafka/config")
+                MountableFile.forClasspathResource("shared/kafka-connect/"),
+                "/opt/bitnami/kafka/config")
             .withNetwork(BaseTest.TEST_NETWORK)
             .withNetworkAliases("kafka-connect");
   }
