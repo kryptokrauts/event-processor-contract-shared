@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
     auction_seller TEXT,
     auction_royalty double precision,
     auction_token TEXT,
-    auction_starting_bid bigint,
+    auction_starting_bid double precision,
     auction_current_bid double precision,
     num_bids integer,
     highest_bidder TEXT,
