@@ -107,6 +107,9 @@ SELECT
 	t6.category,
 	t6.shielded,
 	t6.blacklisted,
+	t6.blacklist_date,
+	t6.blacklist_reason,
+	t6.blacklist_actor,
 	t1.minter,
 	t1.receiver,
 	COALESCE(t4.burned,FALSE) AS burned,
@@ -172,6 +175,7 @@ CREATE OR REPLACE VIEW soonmarket_auction_bundle_assets_v as
 SELECT 
 t1.auction_id,
 t1.asset_id,
+t1.index,
 t1.template_id,
 t2.collection_id,
 t2.asset_name,
@@ -226,6 +230,7 @@ CREATE OR REPLACE VIEW soonmarket_listing_bundle_assets_v as
 SELECT 
 	t1.listing_id,
 	t1.asset_id,
+	t1.index,
 	t1.template_id,
 	t2.asset_name,
 	t2.asset_media,
@@ -238,7 +243,58 @@ SELECT
 	t2.owner
 FROM soonmarket_listing_v t1 
 LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id
-WHERE t1.valid and state is null;
+WHERE t1.valid;
+
+----------------------------------
+-- base views for buyoffer
+----------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_buyoffer_v AS
+SELECT 
+	gen_random_uuid() AS id,
+	t1.blocknum AS blocknum, 
+	t1.block_timestamp AS buyoffer_date,
+	t1.buyoffer_id,
+	t1.primary_asset_id,
+	t2.asset_id,
+	t2.template_id,
+	t4.serial,
+	t4.edition_size,
+	t4.asset_name,
+	t4.asset_media,
+	t4.asset_media_type,
+	t4.asset_media_preview,
+	t4.owner,
+	t1.seller,
+	t1.buyer,
+	t1.bundle,
+	t1.token,
+	t1.price,
+	t1.memo,
+	t1.collection_fee AS royalty
+FROM atomicmarket_buyoffer t1
+LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
+LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
+
+COMMENT ON VIEW soonmarket_buyoffer_v IS 'Buyoffers for given asset or template';
+
+--
+
+CREATE OR REPLACE VIEW soonmarket_buyoffer_bundle_assets_v as
+SELECT 
+	t1.buyoffer_id,
+	t1.asset_id,
+	t1.template_id,
+	t2.asset_name,
+	t2.asset_media,
+	t2.asset_media_type,
+	t2.asset_media_preview,
+	t2.serial,
+	t2.edition_size,
+	t2.owner
+FROM soonmarket_buyoffer_v t1;
+
+COMMENT ON VIEW soonmarket_buyoffer_bundle_assets_v IS 'Get bundle assets for a buyoffer';
 
 ----------------------------------
 -- last sold for views

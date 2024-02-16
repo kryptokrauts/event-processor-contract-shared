@@ -36,25 +36,6 @@ LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
 
 COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get open buyoffers for given asset or template';
 
---
-
-CREATE OR REPLACE VIEW soonmarket_buyoffer_bundle_assets_v as
-SELECT 
-	t1.buyoffer_id,
-	t1.asset_id,
-	t1.template_id,
-	t2.asset_name,
-	t2.asset_media,
-	t2.asset_media_type,
-	t2.asset_media_preview,
-	t2.serial,
-	t2.edition_size,
-	t2.owner
-FROM soonmarket_buyoffer_open_v t1 
-LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id;
-
-COMMENT ON VIEW soonmarket_buyoffer_bundle_assets_v IS 'Get bundle assets for a buyoffer';
-
 ----------------------------------
 -- NFT Card View
 ----------------------------------
@@ -194,7 +175,7 @@ CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_token
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_token
 END
-WHERE NOT blacklisted;
+WHERE NOT blacklisted AND (CASE WHEN auction_end_date IS NOT NULL THEN FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) <= t1.auction_end_date ELSE TRUE END);
 
 COMMENT ON VIEW soonmarket_nft_card_v IS 'View for NFT Cards';
 
@@ -217,6 +198,52 @@ LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
+
+-----------------------------------------
+-- MyNFTs Mat-View TODO: move to function
+-----------------------------------------
+
+CREATE MATERIALIZED VIEW soonmarket_my_nfts_mv as
+SELECT 
+t1.asset_id,
+t1.template_id,
+t1.serial,
+t1.edition_size,
+t1.asset_name,
+t1.asset_media,
+t1.asset_media_type,
+t1.asset_media_preview,
+t1.owner,
+t1.transferable,
+t1.burnable,
+t1.collection_id,
+t1.collection_name,
+t1.collection_image,
+t1.creator,
+t1.shielded,
+t1.blacklisted,
+t1.blacklist_actor,
+t1.blacklist_date,
+t1.blacklist_reason,
+t2.listing_id,
+t2.listing_date,
+t2.listing_token,
+t2.listing_price,
+t3.auction_id,
+t3.auction_end_date,
+t3.auction_token,
+t3.auction_starting_bid,
+t3.auction_current_bid,
+COALESCE(t3.bundle,t2.bundle,false) AS bundle,
+t4.price,
+t4.token,
+t1.received_date
+FROM soonmarket_asset_v t1
+LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id=t2.asset_id AND t2.state IS NULL AND valid
+LEFT JOIN soonmarket_auction_v t3 ON t1.asset_id=t3.asset_id AND t3.active AND t3.state IS NULL
+LEFT JOIN soonmarket_last_sold_for_asset_v t4 ON t1.asset_id=t4.asset_id;
+
+COMMENT ON VIEW soonmarket_my_nfts_mv IS 'View for MyNFTs, consider move this to a function';
 
 ----------------------------------
 -- Collection Detail View
