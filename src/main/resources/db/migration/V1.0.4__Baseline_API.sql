@@ -195,13 +195,13 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	t2.listing_id,
 	t3.auction_id
 FROM soonmarket_asset_v t1
-LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
+LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle GROUP BY asset_id and state is null)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
 LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 
 -----------------------------------------
--- MyNFTs Mat-View TODO: move to function
+-- MyNFTs View
 -----------------------------------------
 
 CREATE VIEW soonmarket_my_nfts_v as
@@ -235,24 +235,53 @@ SELECT
 	t7.token as auction_token,
 	t7.starting_price as auction_starting_bid,
 	t7.current_bid as auction_current_bid,
-	COALESCE(t7.bundle,false) AS bundle,
+	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
 	t8.listing_id,
 	t8.listing_date,
 	t8.listing_token,
 	t8.listing_price,
 	t9.price,
-	t9.token
+	t9.token,
+	COALESCE(COALESCE(t7.current_bid,t7.starting_price),t8.listing_price) AS filter_price_usd
 FROM atomicassets_asset_owner_log t1
 inner JOIN atomicassets_asset t2 ON t1.asset_id=t2.asset_id
 LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
 LEFT JOIN soonmarket_template_v t4 ON t2.template_id=t4.template_id
 LEFT JOIN soonmarket_collection_v t5 on t2.collection_id=t5.collection_id
 left JOIN LATERAL (SELECT auction_id,auction_end,token,starting_price,current_bid,bundle from soonmarket_auction_base_v where t1.asset_id=asset_id AND active) t7 ON true
-left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_open_v where t1.asset_id=asset_id)t8 ON true
+left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_valid_mv where t1.asset_id=asset_id)t8 ON true
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id AND buyer=OWNER
-WHERE t1.CURRENT;
+WHERE t1.CURRENT AND NOT blacklisted
 
 COMMENT ON VIEW soonmarket_my_nfts_v IS 'View for MyNFTs';
+
+-----------------------------------------
+-- Manage NFTs View
+-----------------------------------------
+
+CREATE OR replace VIEW soonmarket_manageable_nft_v as
+SELECT * FROM(
+SELECT 
+t1.minted - t1.burned AS num_circulating,
+t1.burned AS num_burned,
+t1.mintable AS num_mintable,
+t1.last_minting_date,
+t2.*
+FROM (
+	SELECT 
+		creator,
+		template_id,
+	   edition_size AS total,
+		COUNT(*) AS minted,
+		count(CASE WHEN burned THEN 1 end) AS burned,
+		CASE WHEN edition_size != 0 THEN edition_size - COUNT(*) ELSE 0 END AS mintable,
+		MAX(t1.mint_date) AS last_minting_date
+	FROM soonmarket_nft t1
+	WHERE edition_size != 1
+	GROUP BY template_id,edition_size,creator) t1
+LEFT JOIN LATERAL (SELECT * from soonmarket_nft WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
+UNION ALL
+SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft WHERE edition_size=1)t
 
 ----------------------------------
 -- Collection Detail View
