@@ -82,7 +82,7 @@ SELECT
 	CASE WHEN t4.burned THEN TRUE ELSE FALSE END AS burned
 FROM atomicassets_asset t1
 LEFT JOIN atomicassets_asset_data t2 ON t1.asset_id = t2.asset_id
-LEFT JOIN atomicassets_asset_owner_log t4 ON t1.asset_id = t4.asset_id AND t4.current AND NOT burned
+LEFT JOIN atomicassets_asset_owner_log t4 ON t1.asset_id = t4.asset_id AND t4.current
 LEFT JOIN soonmarket_template_v t5 ON t1.template_id = t5.template_id;
 
 --
@@ -138,6 +138,32 @@ LEFT JOIN soonmarket_collection_v t6 ON t1.collection_id = t6.collection_id;
 -- base views for auction
 ----------------------------------
 
+CREATE VIEW soonmarket_auction_base_v as
+SELECT 
+	t1.auction_id,
+	t5.asset_id,
+	t5.template_id,
+	t5.collection_id,
+	t1.seller,
+	t1.price AS starting_price,
+	er.usd * t1.price AS starting_price_usd,	
+	t4.current_bid,
+	er.usd * t4.current_bid AS current_bid_usd,
+	t1.token,
+	t1.collection_fee,
+	t1.bundle,
+	t1.bundle_size,
+	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end,
+	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000) as active
+FROM atomicmarket_auction t1
+INNER JOIN atomicmarket_auction_asset t5 ON t1.auction_id=t5.auction_id
+LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
+LEFT JOIN soonmarket_exchange_rate_latest_v er ON t1.token = er.token_symbol;
+
+COMMENT ON VIEW public.soonmarket_auction_base_v IS 'Basic aggregation auf auction info to match with asset/template';	
+
+--
+
 CREATE OR REPLACE VIEW soonmarket_auction_v AS
 SELECT 
 	t1.auction_id,
@@ -147,9 +173,9 @@ SELECT
 	t3.template_id,
 	t3.collection_id,
 	t2.state,
-	GREATEST (t2.end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000)  as active,
+	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000)  as active,
 	t1.block_timestamp AS auction_start_date,
-	GREATEST (t2.end_time,t1.end_time) AS auction_end_date,
+	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end_date,
 	t1.token AS auction_token,
 	t1.price AS auction_starting_bid,
 	t1.collection_fee as auction_royalty,
@@ -194,13 +220,32 @@ LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id;
 -- base views for sale
 ----------------------------------
 
+CREATE OR replace VIEW soonmarket_listing_open_v as
+SELECT 	
+	t1.sale_id AS listing_id,
+	t3.asset_id,
+	t3.template_id,
+	t3.collection_id,
+	t1.block_timestamp AS listing_date,
+	t1.price AS listing_price,
+	er.usd * t1.price AS listing_price_usd,
+	t1.token AS listing_token,
+	bundle,
+	bundle_size	
+FROM atomicmarket_sale t1 
+INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
+LEFT JOIN soonmarket_exchange_rate_latest_v er ON t1.token = er.token_symbol
+WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 where t1.sale_id=t2.sale_id);
+
+--
+
 CREATE OR REPLACE VIEW soonmarket_listing_v AS
 SELECT
 	t1.blocknum AS blocknum, 
 	t1.block_timestamp AS listing_date,
 	t1.sale_id as listing_id,
-	COALESCE(t2.state::smallint) as state,
-	COALESCE((COALESCE(t5.owner,t4.receiver) = t1.seller),false) AS VALID,
+	t2.state,
+	COALESCE(t5.owner = t1.seller,false) AS VALID,
 	t3.asset_id,
 	t4.serial,
 	t3.index,
@@ -274,7 +319,7 @@ SELECT
 	t1.collection_fee AS royalty
 FROM atomicmarket_buyoffer t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
-LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
+LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;
 
 COMMENT ON VIEW soonmarket_buyoffer_v IS 'Buyoffers for given asset or template';
 
@@ -285,13 +330,13 @@ SELECT
 	t1.buyoffer_id,
 	t1.asset_id,
 	t1.template_id,
-	t2.asset_name,
-	t2.asset_media,
-	t2.asset_media_type,
-	t2.asset_media_preview,
-	t2.serial,
-	t2.edition_size,
-	t2.owner
+	t1.asset_name,
+	t1.asset_media,
+	t1.asset_media_type,
+	t1.asset_media_preview,
+	t1.serial,
+	t1.edition_size,
+	t1.owner
 FROM soonmarket_buyoffer_v t1;
 
 COMMENT ON VIEW soonmarket_buyoffer_bundle_assets_v IS 'Get bundle assets for a buyoffer';
@@ -310,6 +355,7 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,
 				r.token,
+				s.buyer,
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_auction_asset a
@@ -319,17 +365,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    asset_id,
-    r1.price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,
-		token,
+    r1.*,
     'auction' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;
 
@@ -346,7 +385,8 @@ WITH ranked_prices AS (
 				r.collection_fee as royalty,
         s.maker_market_fee,
         s.taker_market_fee,
-				r.token,		
+				r.token,
+				s.buyer,		
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_auction_asset a
@@ -356,17 +396,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    template_id,
-    r1.price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,
-		token,		
+    r1.*,		
     'auction' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;
 
@@ -383,7 +416,8 @@ WITH ranked_prices AS (
 				r.collection_fee as royalty,
         s.maker_market_fee,
         s.taker_market_fee,
-				r.token,						             
+				r.token,
+				r.buyer,						             
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_buyoffer_asset a
@@ -393,17 +427,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    asset_id,
-    price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,	
-		token,	
+    r1.*,	
    'buyoffer' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;
 
@@ -420,7 +447,8 @@ WITH ranked_prices AS (
 				r.collection_fee as royalty,
         s.maker_market_fee,
         s.taker_market_fee,	
-				r.token,			       
+				r.token,	
+				r.buyer,		       
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_buyoffer_asset a
@@ -430,17 +458,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    template_id,
-    price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,		
-		token,
+    r1.*,
    'buyoffer' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;	
 
@@ -457,7 +478,8 @@ WITH ranked_prices AS (
 				r.collection_fee as royalty,
         s.maker_market_fee,
         s.taker_market_fee,
-				r.token,					
+				r.token,	
+				s.buyer,				
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_sale_asset a
@@ -467,17 +489,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    asset_id,
-    price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,	
-		token,	
+    r1.*,	
     'sale' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;
 
@@ -494,7 +509,8 @@ WITH ranked_prices AS (
 				r.collection_fee as royalty,
         s.maker_market_fee,
         s.taker_market_fee,	
-				r.token,				
+				r.token,
+				s.buyer,				
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_sale_asset a
@@ -504,17 +520,10 @@ WITH ranked_prices AS (
         WHERE s.state=3 AND NOT r.bundle
 )
 SELECT
-    template_id,
-    price,
-    block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,	
-		token,	
+    r1.*,	
     'sale' AS sourcetype    
 FROM
     ranked_prices r1
-
 WHERE
     rn = 1;
 
@@ -531,7 +540,8 @@ WITH all_prices AS (
 		royalty,
 		maker_market_fee,
 		taker_market_fee,
-		token,		
+		token,
+		buyer,		
 	  sourcetype,
 	  ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY block_timestamp DESC) AS rn
 	FROM
@@ -543,16 +553,7 @@ WITH all_prices AS (
 		SELECT * FROM soonmarket_lsf_latest_asset_sales_v
 	)aggregated
 )
-SELECT 
-		asset_id,
-	  price,
-	  block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,
-		token,		
-	  sourcetype
-FROM all_prices WHERE rn=1;
+SELECT * FROM all_prices WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_asset_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
 
@@ -568,6 +569,7 @@ WITH all_prices AS (
 		maker_market_fee,
 		taker_market_fee,
 		token,		
+		buyer,
 	  sourcetype,
 	  ROW_NUMBER() OVER (PARTITION BY template_id ORDER BY block_timestamp DESC) AS rn
 	FROM
@@ -579,16 +581,7 @@ WITH all_prices AS (
 		SELECT * FROM soonmarket_lsf_latest_template_sales_v
 	)aggregated
 )
-SELECT 
-	  template_id,
-	  price,
-	  block_timestamp,
-		royalty,
-		maker_market_fee,
-		taker_market_fee,
-		token,		
-	  sourcetype
-FROM all_prices WHERE rn=1;
+SELECT * FROM all_prices WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_template_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
 

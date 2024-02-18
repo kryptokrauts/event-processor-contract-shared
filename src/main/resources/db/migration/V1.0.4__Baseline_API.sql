@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
 		_card_state text,
 		_card_quick_action text,
     asset_id bigint,
+		mint_date bigint,
     serial bigint,
     transferable boolean,
     burnable boolean,
@@ -155,6 +156,11 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_listing_date
     (listing_date)
     TABLESPACE pg_default;					
 
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_mint_date
+    ON public.soonmarket_nft_card USING btree
+    (mint_date)
+    TABLESPACE pg_default;			
+
 --
 
 CREATE OR REPLACE VIEW soonmarket_nft_card_v AS
@@ -187,15 +193,10 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	SELECT
 	t1.*,
 	t2.listing_id,
-	t3.auction_id,
-	COALESCE(b1.block_timestamp,b2.block_timestamp) AS blacklist_date,
-	COALESCE(b1.reporter_comment,b2.reporter_comment) AS blacklist_reason,
-	CASE WHEN b1.reporter is not null THEN 'NFT Watch' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor
+	t3.auction_id
 FROM soonmarket_asset_v t1
-LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id=t2.asset_id AND not t2.bundle
-LEFT JOIN soonmarket_auction_v t3 ON t1.asset_id=t3.asset_id AND t3.active                        
-LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
-LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id;
+LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
+LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 
@@ -203,47 +204,55 @@ COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 -- MyNFTs Mat-View TODO: move to function
 -----------------------------------------
 
-CREATE MATERIALIZED VIEW soonmarket_my_nfts_mv as
+CREATE VIEW soonmarket_my_nfts_v as
 SELECT 
-t1.asset_id,
-t1.template_id,
-t1.serial,
-t1.edition_size,
-t1.asset_name,
-t1.asset_media,
-t1.asset_media_type,
-t1.asset_media_preview,
-t1.owner,
-t1.transferable,
-t1.burnable,
-t1.collection_id,
-t1.collection_name,
-t1.collection_image,
-t1.creator,
-t1.shielded,
-t1.blacklisted,
-t1.blacklist_actor,
-t1.blacklist_date,
-t1.blacklist_reason,
-t2.listing_id,
-t2.listing_date,
-t2.listing_token,
-t2.listing_price,
-t3.auction_id,
-t3.auction_end_date,
-t3.auction_token,
-t3.auction_starting_bid,
-t3.auction_current_bid,
-COALESCE(t3.bundle,t2.bundle,false) AS bundle,
-t4.price,
-t4.token,
-t1.received_date
-FROM soonmarket_asset_v t1
-LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id=t2.asset_id AND t2.state IS NULL AND valid
-LEFT JOIN soonmarket_auction_v t3 ON t1.asset_id=t3.asset_id AND t3.active AND t3.state IS NULL
-LEFT JOIN soonmarket_last_sold_for_asset_v t4 ON t1.asset_id=t4.asset_id;
+	t1.asset_id, 
+	t2.template_id,
+	t2.serial,
+	t4.edition_size,
+	t2.block_timestamp AS mint_date, 
+	t1.block_timestamp AS received_date, 
+	burned,	
+	CASE WHEN burned THEN t1.block_timestamp ELSE NULL END AS burned_date,
+	COALESCE(t3.name,t4.name) AS asset_name,
+	COALESCE(t3.media,t4.media) AS asset_media,
+	COALESCE(t3.media_type,t4.media_type) AS asset_media_type,
+	COALESCE(t3.media_preview,t4.media_preview) AS asset_media_preview, 	
+	COALESCE(t3.transferable,t4.transferable) AS transferable,	
+	COALESCE(t3.burnable,t4.burnable) AS burnable,
+	t1.owner,
+	t2.collection_id,
+	t5.name AS collection_name,
+	t5.image AS collection_image,
+	t5.creator,
+	t5.shielded,
+	t5.blacklisted,
+	t5.blacklist_date,
+	t5.blacklist_reason,
+	t5.blacklist_actor,
+	t7.auction_id,
+	t7.auction_end AS auction_end_time,
+	t7.token as auction_token,
+	t7.starting_price as auction_starting_bid,
+	t7.current_bid as auction_current_bid,
+	COALESCE(t7.bundle,false) AS bundle,
+	t8.listing_id,
+	t8.listing_date,
+	t8.listing_token,
+	t8.listing_price,
+	t9.price,
+	t9.token
+FROM atomicassets_asset_owner_log t1
+inner JOIN atomicassets_asset t2 ON t1.asset_id=t2.asset_id
+LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
+LEFT JOIN soonmarket_template_v t4 ON t2.template_id=t4.template_id
+LEFT JOIN soonmarket_collection_v t5 on t2.collection_id=t5.collection_id
+left JOIN LATERAL (SELECT auction_id,auction_end,token,starting_price,current_bid,bundle from soonmarket_auction_base_v where t1.asset_id=asset_id AND active) t7 ON true
+left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_open_v where t1.asset_id=asset_id)t8 ON true
+LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id AND buyer=OWNER
+WHERE t1.CURRENT;
 
-COMMENT ON VIEW soonmarket_my_nfts_mv IS 'View for MyNFTs, consider move this to a function';
+COMMENT ON VIEW soonmarket_my_nfts_v IS 'View for MyNFTs';
 
 ----------------------------------
 -- Collection Detail View
@@ -400,7 +409,7 @@ CREATE OR REPLACE VIEW soonmarket_edition_info_v as
     COALESCE(COALESCE(t3.auction_current_bid, t3.auction_starting_bid), t2.listing_price) AS price,
     COALESCE(t3.auction_royalty, t2.listing_royalty) AS royalty
    FROM soonmarket_asset_base_v t1
-     LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id = t2.asset_id AND t2.valid AND STATE=1 AND t2.bundle != true
+     LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id = t2.asset_id AND t2.valid AND STATE is null AND t2.bundle != true
    LEFT JOIN soonmarket_auction_v t3 ON t1.asset_id = t3.asset_id AND t3.active AND t3.bundle != true;
  
 COMMENT ON VIEW soonmarket_edition_info_v IS 'Get serial info for a template';
@@ -417,7 +426,7 @@ SELECT
 	t2.collection_fee AS royalty,
 	t2.token,
 	t1.bidder,
-	t1.updated_end_date,
+	t1.updated_end_time,
 	t1.bid_number
 FROM atomicmarket_event_auction_bid_log t1
 LEFT JOIN atomicmarket_auction t2 ON t1.auction_id=t2.auction_id

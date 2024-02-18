@@ -52,7 +52,12 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_state
     ON public.atomicmarket_sale_state USING btree
     (state)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_sale_id_buyer
+    ON public.atomicmarket_sale_state USING btree
+    (sale_id,buyer)
+    TABLESPACE pg_default;					
 
 COMMENT ON TABLE public.atomicmarket_sale_state IS 'Store sale state change information';
 COMMENT ON COLUMN public.atomicmarket_sale_state.state IS 'Sale state mapping: 2=cancelled, 3=sold';
@@ -85,7 +90,7 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_sale_id
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_asset_id
     ON public.atomicmarket_sale_asset USING btree
     (asset_id)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;				
 
 ----------------------------------
 -- auction tables
@@ -187,7 +192,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
     auction_id bigint NOT NULL,
     current_bid double precision,
     bid_number integer NOT NULL,
-    updated_end_date bigint,
+    updated_end_time bigint,
     bidder TEXT NOT NULL,
     taker_marketplace TEXT,
     PRIMARY KEY (auction_id, bid_number)
