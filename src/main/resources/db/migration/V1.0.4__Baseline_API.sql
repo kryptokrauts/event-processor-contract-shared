@@ -274,7 +274,7 @@ FROM (
 	   edition_size AS total,
 		COUNT(*) AS minted,
 		count(CASE WHEN burned THEN 1 end) AS burned,
-		CASE WHEN edition_size != 0 THEN edition_size - COUNT(*) ELSE 0 END AS mintable,
+		CASE WHEN edition_size != 0 THEN edition_size - COUNT(*) ELSE -1 END AS mintable,
 		MAX(t1.mint_date) AS last_minting_date
 	FROM soonmarket_nft t1
 	WHERE edition_size != 1
@@ -282,6 +282,16 @@ FROM (
 LEFT JOIN LATERAL (SELECT * from soonmarket_nft WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
 UNION ALL
 SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft WHERE edition_size=1)t
+
+COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent row, creators)';
+
+--
+
+CREATE OR replace VIEW soonmarket_manageable_edition_nft_v as
+	SELECT * 
+	FROM soonmarket_nft WHERE edition_size!=1;
+
+COMMENT ON VIEW soonmarket_manageable_edition_nft_v IS 'View for manageable edition NFTs (child row, creators)';	
 
 ----------------------------------
 -- Collection Detail View
@@ -331,14 +341,17 @@ COALESCE(b1.reporter_comment,b2.reporter_comment) AS blacklist_reason,
 CASE WHEN b1.reporter is not null THEN 'NFT Watch' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
 CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS shielded,
 t2.name,                                                                          
-t2.description
+t2.description,
+t5.schema_id,
+t5.schema_name
 FROM atomicassets_collection t1                                                   
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current
 LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
-LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id;
+LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
+LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON true;;
 
 ----------------------------------
 -- Edition
