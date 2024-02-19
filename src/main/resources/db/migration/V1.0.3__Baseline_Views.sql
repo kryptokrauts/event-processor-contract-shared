@@ -76,7 +76,7 @@ SELECT
 	COALESCE(t2.media, t5.media) AS asset_media,
 	COALESCE(t2.media_type, t5.media_type) AS asset_media_type,
 	COALESCE(t2.media_preview, t5.media_preview) AS asset_media_preview,
-	COALESCE(t4.owner,t1.receiver) AS OWNER,
+	t4.owner,
 	CASE WHEN t1.template_id IS NOT NULL THEN t5.transferable ELSE TRUE END AS transferable,
 	CASE WHEN t1.template_id IS NOT NULL THEN t5.burnable ELSE TRUE END AS burnable,
 	CASE WHEN t4.burned THEN TRUE ELSE FALSE END AS burned
@@ -115,7 +115,7 @@ SELECT
 	COALESCE(t4.burned,FALSE) AS burned,
 	CASE WHEN t4.burned THEN t4.owner END AS burned_by,
 	CASE WHEN t4.burned THEN t4.block_timestamp END AS burn_date,
-	COALESCE(t4.owner,t1.receiver) AS OWNER,
+	t4.owner,
 	COALESCE(t4.block_timestamp,t1.block_timestamp) AS received_date,
 	COALESCE(t2.name, t5.name) AS asset_name,
 	COALESCE(t2.description, t5.description) AS description,
@@ -224,10 +224,10 @@ CREATE OR replace VIEW soonmarket_listing_valid_v as
 WITH valid_sales AS (
 SELECT 
 	t1.sale_id,
-	BOOL_AND(COALESCE(t5.owner = t1.seller,FALSE)) AS VALID
+	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID
 FROM atomicmarket_sale t1 
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
-LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current
+LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current and not t4.burned
 WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 where t1.sale_id=t2.sale_id)
 GROUP BY t1.sale_id
 )
@@ -241,7 +241,8 @@ SELECT
 	er.usd * t2.price AS listing_price_usd,
 	t2.token AS listing_token,
 	bundle,
-	bundle_size 
+	bundle_size,
+	t2.seller
 FROM valid_sales t1
 INNER JOIN atomicmarket_sale t2 ON t1.sale_id=t2.sale_id
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id

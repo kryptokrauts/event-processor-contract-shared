@@ -168,7 +168,7 @@ SELECT t1.*,ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) -
 CASE 
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_end_date 
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_date
-	ELSE t1.block_timestamp END 
+	ELSE t1.mint_date END 
 ) AS sort_date,
 round_to_decimals_f(CASE 
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_price 
@@ -195,7 +195,7 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	t2.listing_id,
 	t3.auction_id
 FROM soonmarket_asset_v t1
-LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle GROUP BY asset_id and state is null)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
+LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle and state is null GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
 LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
@@ -203,6 +203,94 @@ COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 -----------------------------------------
 -- MyNFTs View
 -----------------------------------------
+
+WITH asset_owner AS(
+SELECT 
+	t1.blocknum,
+	t1.block_timestamp,
+	t1.asset_id, 
+	t1.template_id,
+	t1.schema_id,
+	t1.collection_id,	
+	t1.serial,
+	t4.edition_size,
+	COALESCE(t3.transferable,t4.transferable) AS transferable,	
+	COALESCE(t3.burnable,t4.burnable) AS burnable,	
+	t2.owner,
+	t2.block_timestamp AS mint_date, 
+	COALESCE(t2.block_timestamp,t1.block_timestamp) AS received_date, 			
+	COALESCE(burned,FALSE) AS burned,
+	CASE WHEN burned THEN t1.block_timestamp ELSE NULL END AS burned_date,
+	CASE WHEN burned THEN t2.owner END AS burned_by,
+	COALESCE(t3.name,t4.name) AS asset_name,
+	COALESCE(t3.media,t4.media) AS asset_media,
+	COALESCE(t3.media_type,t4.media_type) AS asset_media_type,
+	COALESCE(t3.media_preview,t4.media_preview) AS asset_media_preview, 	
+	t5.name AS collection_name,
+	t5.image AS collection_image,
+	t5.collection_fee AS royalty,
+	t5.creator,
+	t5.shielded
+FROM atomicassets_asset t1
+LEFT JOIN atomicassets_asset_owner_log t2 ON t1.asset_id=t2.asset_id AND t2.current 
+LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
+LEFT JOIN soonmarket_template_v t4 ON t1.template_id=t4.template_id
+LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id	
+where not blacklisted
+)
+SELECT 
+	t1.*,
+	t7.auction_id,
+	t7.auction_end AS auction_end_time,
+	t7.token as auction_token,
+	t7.starting_price as auction_starting_bid,
+	t7.current_bid as auction_current_bid,
+	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
+	COALESCE(t7.bundle_size,t8.bundle_size,null) AS bundle_size,		
+	t8.listing_id,
+	t8.listing_date,
+	t8.listing_token,
+	t8.listing_price,
+	t9.price, 
+	t9.token, 
+	COALESCE(t7.token,t8.listing_token) AS filter_token,
+	COALESCE(COALESCE(t7.current_bid_usd,t7.starting_price_usd),t8.listing_price_usd) AS filter_price_usd
+INTO soonmarket_nft
+FROM asset_owner t1
+left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
+left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id  
+LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id;
+
+COMMENT ON TABLE soonmarket_nft IS 'Base NFT table';
+COMMENT ON COLUMN soonmarket_nft.price IS 'Last sold for price';
+COMMENT ON COLUMN soonmarket_nft.token IS 'Last sold for token';
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_owner_transferable
+    ON public.soonmarket_nft USING btree
+    (owner,transferable)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_templateid_creator_editionsize
+    ON public.soonmarket_nft USING btree
+    (template_id,creator,edition_size)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_editionsize
+    ON public.soonmarket_nft USING btree
+    (edition_size)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burnable
+    ON public.soonmarket_nft USING btree
+    (burnable)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_shielded
+    ON public.soonmarket_nft USING btree
+    (shielded)
+    TABLESPACE pg_default;							
+
+--
 
 CREATE VIEW soonmarket_my_nfts_v as
 SELECT 
@@ -249,9 +337,9 @@ LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
 LEFT JOIN soonmarket_template_v t4 ON t2.template_id=t4.template_id
 LEFT JOIN soonmarket_collection_v t5 on t2.collection_id=t5.collection_id
 left JOIN LATERAL (SELECT auction_id,auction_end,token,starting_price,current_bid,bundle from soonmarket_auction_base_v where t1.asset_id=asset_id AND active) t7 ON true
-left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_valid_mv where t1.asset_id=asset_id)t8 ON true
+left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_valid_v where t1.asset_id=asset_id)t8 ON true
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id AND buyer=OWNER
-WHERE t1.CURRENT AND NOT blacklisted
+WHERE t1.CURRENT AND NOT blacklisted;
 
 COMMENT ON VIEW soonmarket_my_nfts_v IS 'View for MyNFTs';
 
@@ -281,7 +369,7 @@ FROM (
 	GROUP BY template_id,edition_size,creator) t1
 LEFT JOIN LATERAL (SELECT * from soonmarket_nft WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
 UNION ALL
-SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft WHERE edition_size=1)t
+SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft WHERE edition_size=1)t;
 
 COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent row, creators)';
 
@@ -483,7 +571,7 @@ COMMENT ON VIEW soonmarket_auction_bids_v IS 'Get done auction bids';
 CREATE OR replace VIEW soonmarket_collection_holder_v AS
 WITH collection_owner AS (
 	SELECT 
-	COALESCE(t1.owner,t2.receiver) AS account,
+	t1.owner AS account,
 	t2.collection_id
 	FROM atomicassets_asset t2
 	LEFT JOIN atomicassets_asset_owner_log t1 ON t1.asset_id=t2.asset_id AND current AND NOT burned
@@ -506,7 +594,7 @@ COMMENT ON VIEW soonmarket_collection_holder_v IS 'List of collection holders an
 
 CREATE VIEW soonmarket_asset_owner_v AS 
 SELECT 
-COALESCE(t1.owner,t2.receiver) as owner,
+t1.owner,
 t1.asset_id,
 t2.template_id,
 t2.collection_id
