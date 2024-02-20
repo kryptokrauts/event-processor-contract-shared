@@ -315,6 +315,7 @@ SELECT
 	t1.buyoffer_id,
 	t1.primary_asset_id,
 	t2.asset_id,
+	t2.index,
 	t2.template_id,
 	t4.serial,
 	t4.edition_size,
@@ -342,6 +343,7 @@ CREATE OR REPLACE VIEW soonmarket_buyoffer_bundle_assets_v as
 SELECT 
 	t1.buyoffer_id,
 	t1.asset_id,
+	t1.index,
 	t1.template_id,
 	t1.asset_name,
 	t1.asset_media,
