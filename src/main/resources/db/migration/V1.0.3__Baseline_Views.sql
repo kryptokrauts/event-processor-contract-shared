@@ -240,6 +240,7 @@ SELECT
 	t2.price AS listing_price,
 	er.usd * t2.price AS listing_price_usd,
 	t2.token AS listing_token,
+	t2.collection_fee AS listing_royalty,
 	bundle,
 	bundle_size,
 	t2.seller
