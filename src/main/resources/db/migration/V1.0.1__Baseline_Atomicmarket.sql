@@ -1,4 +1,71 @@
 ----------------------------------
+-- trigger functions
+----------------------------------
+
+-- trigger function to fill template_id and collection_id in market_asset tables
+CREATE OR REPLACE FUNCTION atomicmarket_asset_fill_ids_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    _template_id bigint;
+		_collection_id text;
+BEGIN
+    -- Retrieve the values from the previous row
+    SELECT template_id, collection_id INTO _template_id,_collection_id FROM public.atomicassets_asset WHERE asset_id = NEW.asset_id;
+
+    -- set template_id and collection_id
+    NEW.template_id := _template_id;
+    NEW.collection_id := _collection_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- trigger function set auction bid number and update end time
+CREATE OR REPLACE FUNCTION atomicmarket_auction_bid_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    _bid_number int;
+		_end_time DOUBLE PRECISION;
+		_updated_end_time DOUBLE PRECISION;
+		_now BIGINT;
+		_auction_reset_ms BIGINT;
+BEGIN
+    -- Retrieve new highest bid number
+    SELECT COALESCE(max(bid_number)+1,1) INTO _bid_number FROM public.atomicmarket_event_auction_bid_log where auction_id = NEW.auction_id;
+		-- get config
+		SELECT auction_reset_duration_seconds*1000 INTO _auction_reset_ms FROM public.atomicmarket_config order by version desc limit 1;
+		-- retrieve end times for potential bump
+		SELECT end_time into _end_time from public.atomicmarket_auction where auction_id = NEW.auction_id;
+		SELECT max(updated_end_time) INTO _updated_end_time FROM public.atomicmarket_event_auction_bid_log where auction_id = NEW.auction_id;
+		SELECT FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) into _now;
+
+    -- set fees
+    NEW.bid_number := _bid_number;
+    NEW.updated_end_time := CASE WHEN (GREATEST(_updated_end_time,_end_time)-_now)<=_auction_reset_ms THEN _now+_auction_reset_ms ELSE NULL END;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- trigger function to fill maker and taker market fees from current config
+CREATE OR REPLACE FUNCTION atomicmarket_state_fill_mtfees_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    _makerfee DOUBLE PRECISION;
+		_takerfee DOUBLE PRECISION;
+BEGIN
+    -- Retrieve the values from the previous row
+    SELECT maker_fee,taker_fee INTO _makerfee,_takerfee FROM public.atomicmarket_config order by version desc limit 1;
+
+    -- set fees
+    NEW.maker_market_fee := _makerfee;
+    NEW.taker_market_fee := _takerfee;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+----------------------------------
 -- sale tables
 ----------------------------------
 
@@ -10,7 +77,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_sale
 		offer_id bigint,
 		primary_asset_id bigint,
 		bundle boolean,
-		bundle_size bigint,
+		bundle_size int,
 		price double precision,
 		token text,
 		collection_fee double precision,
@@ -57,7 +124,13 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_state
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_sale_id_buyer
     ON public.atomicmarket_sale_state USING btree
     (sale_id,buyer)
-    TABLESPACE pg_default;					
+    TABLESPACE pg_default;	
+
+-- add trigger for market fees
+CREATE OR REPLACE TRIGGER atomicmarket_sale_state_fill_mtfees_tr
+BEFORE INSERT ON atomicmarket_sale_state
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_state_fill_mtfees_f();							
 
 COMMENT ON TABLE public.atomicmarket_sale_state IS 'Store sale state change information';
 COMMENT ON COLUMN public.atomicmarket_sale_state.state IS 'Sale state mapping: 2=cancelled, 3=sold';
@@ -90,7 +163,14 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_sale_id
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_asset_id
     ON public.atomicmarket_sale_asset USING btree
     (asset_id)
-    TABLESPACE pg_default;				
+    TABLESPACE pg_default;			
+
+-- add trigger to set template_id / collection_id
+
+CREATE OR REPLACE TRIGGER atomicmarket_sale_asset_fill_ids_tr
+BEFORE INSERT ON atomicmarket_sale_asset
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
 
 ----------------------------------
 -- auction tables
@@ -103,7 +183,8 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_auction
     auction_id bigint NOT NULL,
     primary_asset_id bigint,
     bundle boolean,
-    bundle_size integer,
+    bundle_size int,
+		start_time bigint,
     end_time bigint,
     price double precision,
     token TEXT NOT NULL,
@@ -135,7 +216,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_state
     auction_id bigint NOT NULL,
     state smallint,
     end_time bigint,
-    winning_bid bigint,
+    winning_bid double precision,
 		buyer TEXT,		
     maker_market_fee double precision,
     taker_market_fee double precision,
@@ -147,10 +228,16 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_state
     ON public.atomicmarket_auction_state USING btree
     (state)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;	
+
+-- add trigger to fill maker / taker market fees
+CREATE OR REPLACE TRIGGER atomicmarket_auction_state_fill_mtfees_tr
+BEFORE INSERT ON atomicmarket_auction_state
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_state_fill_mtfees_f();			
 
 COMMENT ON TABLE public.atomicmarket_auction_state IS 'Store auction state change information';
-COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Sale state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids';
+COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids';
 
 --
 
@@ -182,6 +269,13 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_asset_asset_id
     (asset_id)
     TABLESPACE pg_default;
 
+-- add trigger to set template_id / collection_id
+
+CREATE OR REPLACE TRIGGER atomicmarket_auction_asset_fill_ids_tr
+BEFORE INSERT ON atomicmarket_auction_asset
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
+
 --
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
@@ -207,7 +301,18 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_auction_bid_log_current
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_auction_bid_log_auction_id
     ON public.atomicmarket_event_auction_bid_log USING btree
     (auction_id)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;
+
+-- add trigger to update current flag
+CREATE TRIGGER atomicmarket_event_auction_bid_log_tr
+BEFORE INSERT ON public.atomicmarket_event_auction_bid_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('auction_id');		
+
+-- add trigger to set bid number and potential bump date
+CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_f_tr
+BEFORE INSERT ON atomicmarket_event_auction_bid_log
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_auction_bid_f();	
 
 ----------------------------------
 -- buyoffer tables
@@ -255,14 +360,21 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer_state
     taker_marketplace TEXT,
     maker_market_fee double precision,
     taker_market_fee double precision,
-    decline_memo TEXT
+    decline_memo TEXT,
+    PRIMARY KEY (buyoffer_id)
 )
 TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_state_state
     ON public.atomicmarket_buyoffer_state USING btree
     (state)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;	
+
+-- add trigger to fill maker / taker market fees
+CREATE OR REPLACE TRIGGER atomicmarket_buyoffer_state_fill_mtfees_tr
+BEFORE INSERT ON atomicmarket_buyoffer_state
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_state_fill_mtfees_f();					
 
 COMMENT ON TABLE public.atomicmarket_buyoffer_state IS 'Store buyoffer state change information';
 COMMENT ON COLUMN public.atomicmarket_buyoffer_state.state IS 'Sale state mapping: 1=declined, 2=cancelled, 3=accepted/sold';
@@ -277,6 +389,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer_asset
     index integer NOT NULL,
     asset_id bigint NOT NULL,
     template_id bigint,
+		collection_id text,
     PRIMARY KEY (buyoffer_id, asset_id)
 )
 TABLESPACE pg_default;	
@@ -295,6 +408,13 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_asset_asset_id
     ON public.atomicmarket_buyoffer_asset USING btree
     (asset_id)
     TABLESPACE pg_default;
+
+-- add trigger
+
+CREATE OR REPLACE TRIGGER atomicmarket_buyoffer_asset_fill_ids_tr
+BEFORE INSERT ON atomicmarket_buyoffer_asset
+FOR EACH ROW
+EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
 
 ----------------------------------
 -- default tables
