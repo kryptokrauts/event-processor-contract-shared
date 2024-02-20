@@ -195,7 +195,7 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	t2.listing_id,
 	t3.auction_id
 FROM soonmarket_asset_v t1
-LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_v t2 where not bundle and state is null GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
+LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_valid_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
 LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
