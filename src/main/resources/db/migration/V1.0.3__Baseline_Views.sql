@@ -14,7 +14,7 @@ SELECT
 	t1.creator,
 	t1.transferable,
 	t1.burnable,
-	COALESCE(LEAST(t1.initial_max_supply, t2.locked_at_supply),1) as edition_size,
+	COALESCE(t2.locked_at_supply,t1.initial_max_supply) as edition_size,
 	t2.locked,
 	t1.name,
 	t1.description,
@@ -240,6 +240,7 @@ SELECT
 	t2.price AS listing_price,
 	er.usd * t2.price AS listing_price_usd,
 	t2.token AS listing_token,
+	t2.collection_fee AS listing_royalty,
 	bundle,
 	bundle_size,
 	t2.seller
@@ -314,6 +315,7 @@ SELECT
 	t1.buyoffer_id,
 	t1.primary_asset_id,
 	t2.asset_id,
+	t2.index,
 	t2.template_id,
 	t4.serial,
 	t4.edition_size,
@@ -341,6 +343,7 @@ CREATE OR REPLACE VIEW soonmarket_buyoffer_bundle_assets_v as
 SELECT 
 	t1.buyoffer_id,
 	t1.asset_id,
+	t1.index,
 	t1.template_id,
 	t1.asset_name,
 	t1.asset_media,
