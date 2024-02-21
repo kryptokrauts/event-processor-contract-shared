@@ -1,0 +1,39 @@
+{
+	"type": "record",
+	"name": "soonmarket_realtime_event",
+	"namespace": "contracts",
+	"fields": [
+		{
+			"name": "blocknum",
+			"type": "long"
+		},
+		{
+			"name": "block_timestamp",
+			"type": "long"
+		},
+		{
+			"name": "asset_id",
+			"type": ["null","long"]
+		},
+		{
+			"name": "template_id",
+			"type": ["null","long"]
+		},
+		{
+			"name": "collection_id",
+			"type": "string"
+		},
+		{
+			"name": "context",
+			"type": "string"
+		},
+		{
+			"name": "type",
+			"type": "string"
+		},
+		{
+			"name": "data",
+			"type": "string"
+		}	
+	]
+}
