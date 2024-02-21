@@ -65,6 +65,27 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- trigger function to fill auction claim log with previous
+CREATE OR REPLACE FUNCTION atomicmarket_auction_claim_log_fill_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    _claimed_by_buyer BOOLEAN;
+	_claimed_by_seller BOOLEAN;
+BEGIN
+    -- Retrieve the values from the previous row
+    SELECT 
+		claimed_by_buyer,
+		claimed_by_seller 
+	INTO _claimed_by_buyer,_claimed_by_seller 
+	FROM public.atomicmarket_auction_claim_log where auction_id=NEW.auction_Id and current;
+	    
+  	NEW.claimed_by_buyer := COALESCE(NEW.claimed_by_buyer, _claimed_by_buyer);
+		NEW.claimed_by_seller := COALESCE(NEW.claimed_by_seller, _claimed_by_seller);
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 ----------------------------------
 -- sale tables
 ----------------------------------
@@ -280,6 +301,7 @@ EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     current boolean NOT NULL,
@@ -289,7 +311,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
     updated_end_time bigint,
     bidder TEXT NOT NULL,
     taker_marketplace TEXT,
-    PRIMARY KEY (auction_id, bid_number)
+    PRIMARY KEY (id)
 )
 TABLESPACE pg_default;
 
@@ -313,6 +335,41 @@ CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_f_tr
 BEFORE INSERT ON atomicmarket_event_auction_bid_log
 FOR EACH ROW
 EXECUTE FUNCTION atomicmarket_auction_bid_f();	
+
+--
+
+CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_claim_log
+(
+		id bigserial,
+    blocknum bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+    auction_id bigint NOT NULL,
+		current boolean,
+		claimed_by_seller boolean null,
+    claimed_by_buyer boolean null,
+    PRIMARY KEY (id)
+)
+TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_claim_log_current
+    ON public.atomicmarket_auction_claim_log USING btree
+    (current)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_claim_log_auction_id
+    ON public.atomicmarket_auction_claim_log USING btree
+    (auction_id)
+    TABLESPACE pg_default;
+
+-- add trigger to update current flag
+CREATE TRIGGER atomicmarket_event_auction_claim_log_tr
+BEFORE INSERT ON public.atomicmarket_auction_claim_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('auction_id');	
+
+CREATE TRIGGER atomicmarket_auction_claim_log_fill_tr
+BEFORE INSERT ON public.atomicmarket_auction_claim_log
+FOR EACH ROW EXECUTE FUNCTION atomicmarket_auction_claim_log_fill_f() FIRST;
+
 
 ----------------------------------
 -- buyoffer tables
