@@ -368,7 +368,7 @@ FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('auction_id');
 
 CREATE TRIGGER atomicmarket_auction_claim_log_fill_tr
 BEFORE INSERT ON public.atomicmarket_auction_claim_log
-FOR EACH ROW EXECUTE FUNCTION atomicmarket_auction_claim_log_fill_f() FIRST;
+FOR EACH ROW EXECUTE FUNCTION atomicmarket_auction_claim_log_fill_f();
 
 
 ----------------------------------
