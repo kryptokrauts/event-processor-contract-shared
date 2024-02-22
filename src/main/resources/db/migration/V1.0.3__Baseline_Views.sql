@@ -183,6 +183,7 @@ SELECT
 	t2.taker_market_fee as auction_taker_market_fee,
 	t1.seller,
 	t4.current_bid AS auction_current_bid,
+	t4.block_timestamp AS auction_current_bid_date,
 	t4.bid_number AS num_bids,
 	t4.bidder AS highest_bidder,
 	t1.bundle_size,
@@ -330,10 +331,14 @@ SELECT
 	t1.token,
 	t1.price,
 	t1.memo,
-	t1.collection_fee AS royalty
+	t1.collection_fee AS royalty,
+	t5.maker_market_fee,
+	t5.taker_market_fee,
+	t5.decline_memo
 FROM atomicmarket_buyoffer t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
-LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;
+LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
+LEFT JOIN atomicmarket_buyoffer_state t5 ON t1.buyoffer_id=t5.buyoffer_id;
 
 COMMENT ON VIEW soonmarket_buyoffer_v IS 'Buyoffers for given asset or template';
 
