@@ -301,8 +301,7 @@ SELECT
 	t2.edition_size,
 	t2.owner
 FROM soonmarket_listing_v t1 
-LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id
-WHERE t1.valid;
+LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id;
 
 ----------------------------------
 -- base views for buyoffer
