@@ -189,7 +189,8 @@ SELECT
 	t1.bundle_size,
 	t1.bundle_size is not null as bundle,
 	t5.transferable,
-	t5.burnable
+	t5.burnable,
+	CASE WHEN t4.updated_end_time is not null THEN true ELSE false end as bumped
 FROM atomicmarket_auction t1
 left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
