@@ -33,7 +33,7 @@
 		},
 		{
 			"name": "data",
-			"type": "string"
+			"type": ["null","string"]
 		}	
 	]
 }
