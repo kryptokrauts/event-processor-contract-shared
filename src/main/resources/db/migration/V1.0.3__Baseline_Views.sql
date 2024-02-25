@@ -190,7 +190,13 @@ SELECT
 	t1.bundle_size is not null as bundle,
 	t5.transferable,
 	t5.burnable,
-	CASE WHEN t4.updated_end_time is not null THEN true ELSE false end as bumped
+	CASE WHEN t4.updated_end_time is not null THEN true ELSE false end as bumped,
+	t5.edition_size,
+	t5.owner,
+	t5.asset_name,
+	t5.asset_media,
+	t5.asset_media_type,
+	t5.asset_media_preview	
 FROM atomicmarket_auction t1
 left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
@@ -205,18 +211,17 @@ t1.auction_id,
 t1.asset_id,
 t1.index,
 t1.template_id,
-t2.collection_id,
-t2.asset_name,
-t2.asset_media,
-t2.asset_media_type,
-t2.asset_media_preview,
-t2.serial,
-t2.transferable,
-t2.burnable,
-t2.edition_size,
-t2.owner
-FROM soonmarket_auction_v t1 
-LEFT JOIN soonmarket_asset_base_v t2 ON t1.asset_id=t2.asset_id;
+t1.collection_id,
+t1.asset_name,
+t1.asset_media,
+t1.asset_media_type,
+t1.asset_media_preview,
+t1.serial,
+t1.transferable,
+t1.burnable,
+t1.edition_size,
+t1.owner
+FROM soonmarket_auction_v t1;
 
 ----------------------------------
 -- base views for sale
