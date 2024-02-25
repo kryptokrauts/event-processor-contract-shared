@@ -250,7 +250,8 @@ SELECT
 	t2.collection_fee AS listing_royalty,
 	bundle,
 	bundle_size,
-	t2.seller
+	t2.seller,
+	t3.index
 FROM valid_sales t1
 INNER JOIN atomicmarket_sale t2 ON t1.sale_id=t2.sale_id
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
