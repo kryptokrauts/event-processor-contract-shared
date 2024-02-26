@@ -320,6 +320,8 @@ SELECT
 	t1.blocknum AS blocknum, 
 	t1.block_timestamp AS buyoffer_date,
 	t1.buyoffer_id,
+	t5.state,
+	t5.block_timestamp AS buyoffer_update_date,
 	t1.primary_asset_id,
 	t2.asset_id,
 	t2.index,
@@ -340,6 +342,7 @@ SELECT
 	t1.collection_fee AS royalty,
 	t5.maker_market_fee,
 	t5.taker_market_fee,
+	t2.collection_id,
 	t5.decline_memo
 FROM atomicmarket_buyoffer t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
