@@ -75,6 +75,7 @@ COMMENT ON TABLE public.atomicassets_reset_log IS 'Store reset events. Whenever 
 CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
 (
 		id bigserial PRIMARY KEY,		
+		global_sequence bigint,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
 		asset_id bigint NULL,
@@ -185,13 +186,14 @@ COMMENT ON TABLE public.atomicassets_offer_state_log IS 'Store state changes on 
 -- transfer tables
 ----------------------------------		
 CREATE TABLE IF NOT EXISTS public.atomicassets_transfer
-(
+(		
     blocknum bigint NOT NULL,
-    block_timestamp bigint NOT NULL,
-    transfer_id bigserial,
+    block_timestamp bigint NOT NULL,    
+ 		transfer_id bigserial,
     sender text NOT NULL,
     receiver text NOT NULL,
-    asset_ids text[] ,
+		bundle boolean,
+		bundle_size int,
     memo text NULL,
 		PRIMARY KEY(transfer_id)
 )
@@ -208,6 +210,24 @@ CREATE INDEX IF NOT EXISTS idx_transfer_memo
     TABLESPACE pg_default;
 
 COMMENT ON TABLE public.atomicassets_transfer IS 'Store all "real" transfers (without market interaction)';
+
+--
+
+CREATE TABLE IF NOT EXISTS public.atomicassets_transfer_asset
+(
+    blocknum bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+    transfer_id bigint NOT NULL,
+    index integer NOT NULL,
+    asset_id bigint NOT NULL,
+    PRIMARY KEY (transfer_id, asset_id)
+)
+TABLESPACE pg_default;
+		
+CREATE INDEX IF NOT EXISTS idx_atomicassets_transfer_asset_asset_id
+    ON public.atomicassets_transfer_asset USING btree
+    (asset_id)
+    TABLESPACE pg_default;
 
 ----------------------------------
 -- collection tables
