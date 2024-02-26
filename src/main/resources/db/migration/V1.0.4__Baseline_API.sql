@@ -458,26 +458,27 @@ COMMENT ON VIEW soonmarket_edition_auctions_v IS 'Get all auctions for a given e
 
 CREATE OR REPLACE VIEW soonmarket_edition_listings_v AS
 	SELECT 
-	asset_id,
-	template_id,
-	SERIAL,
+	listings.asset_id,
+	listings.template_id,
+	t2.SERIAL,
 	listing_id,
 	listing_date,
 	seller,
 	listing_token,
 	listing_price,
 	listing_royalty,
-	bundle_size
-FROM soonmarket_listing_v listings WHERE VALID AND STATE IS NULL 
-ORDER BY SERIAL asc;
-
+	bundle_size,
+	listings.index
+FROM soonmarket_listing_valid_v listings
+LEFT JOIN soonmarket_asset_base_v t2 ON listings.asset_id=t2.asset_id
+ORDER BY t2.SERIAL asc;
 COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all listings for a given edition/template';
 
 --
 
 CREATE OR REPLACE VIEW soonmarket_edition_bundles_v AS
-SELECT 
-	asset_id,
+SELECT
+	asset_id,	
 	SERIAL,
 	template_id,
 	bundle_size,
@@ -487,19 +488,22 @@ SELECT
    listing_token,
    listing_price,
    listing_royalty,    
-	NULL as auction_id,
-	NULL as auction_start_date,
-	NULL as auction_end_date,
+	NULL::bigint as auction_id,
+	NULL::bigint as auction_start_date,
+	NULL::bigint as auction_end_date,
 	NULL as auction_token,
-	NULL as auction_starting_bid,
-	NULL as auction_royalty,
-	NULL as auction_current_bid,
-	NULL as num_bids,
+	NULL::DOUBLE precision as auction_starting_bid,
+	NULL::DOUBLE precision as auction_royalty,
+	NULL::DOUBLE precision as auction_current_bid,
+	NULL::int as num_bids,
 	NULL as highest_bidder
-FROM soonmarket_edition_listings_v WHERE bundle_size IS NOT NULL
+FROM soonmarket_edition_listings_v WHERE bundle_size IS NOT NULL AND 
+	(template_id,listing_id,INDEX) IN(SELECT template_id,listing_id,min(INDEX) 
+	FROM soonmarket_edition_listings_v v1 
+	WHERE v1.template_id=template_id AND v1.listing_id=listing_id GROUP BY template_id,listing_id)
 UNION 
-SELECT 
-	asset_id,
+SELECT  
+	asset_id,	
 	SERIAL,
 	template_id,
 	bundle_size,
@@ -518,7 +522,10 @@ SELECT
 	auction_current_bid,
 	num_bids,
 	highest_bidder
-FROM soonmarket_edition_auctions_v WHERE bundle_size IS NOT NULL;
+FROM soonmarket_edition_auctions_v WHERE bundle_size IS NOT NULL AND
+	(template_id,auction_id,INDEX) IN(SELECT template_id,auction_id,min(INDEX) 
+	FROM soonmarket_edition_auctions_v v1 
+	WHERE v1.template_id=template_id AND v1.auction_id=auction_id GROUP BY template_id,auction_id);
 
 COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all bundles for a given edition/template';
 
