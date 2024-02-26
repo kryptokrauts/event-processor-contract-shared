@@ -241,6 +241,7 @@ where not blacklisted
 )
 SELECT 
 	t1.*,
+	t10.asset_id is not null as has_offers,
 	t7.auction_id,
 	t7.auction_end AS auction_end_time,
 	t7.token as auction_token,
@@ -260,11 +261,17 @@ INTO soonmarket_nft
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
 left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id  
-LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id;
+LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
+LEFT JOIN LATERAL (select asset_id from soonmarket_buyoffer_open_v where t1.asset_id=asset_id limit 1)t10 ON true;
 
 COMMENT ON TABLE soonmarket_nft IS 'Base NFT table';
 COMMENT ON COLUMN soonmarket_nft.price IS 'Last sold for price';
 COMMENT ON COLUMN soonmarket_nft.token IS 'Last sold for token';
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burned_creator
+    ON public.soonmarket_nft USING btree
+    (burned,creator)
+    TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_owner_transferable
     ON public.soonmarket_nft USING btree
@@ -289,60 +296,17 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burnable
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_shielded
     ON public.soonmarket_nft USING btree
     (shielded)
+    TABLESPACE pg_default;			
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_has_offers
+    ON public.soonmarket_nft USING btree
+    (has_offers)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_kyced
+    ON public.soonmarket_nft USING btree
+    (has_kyc)
     TABLESPACE pg_default;							
-
---
-
-CREATE VIEW soonmarket_my_nfts_v as
-SELECT 
-	t1.asset_id, 
-	t2.template_id,
-	t2.serial,
-	t4.edition_size,
-	t2.block_timestamp AS mint_date, 
-	t1.block_timestamp AS received_date, 
-	burned,	
-	CASE WHEN burned THEN t1.block_timestamp ELSE NULL END AS burned_date,
-	COALESCE(t3.name,t4.name) AS asset_name,
-	COALESCE(t3.media,t4.media) AS asset_media,
-	COALESCE(t3.media_type,t4.media_type) AS asset_media_type,
-	COALESCE(t3.media_preview,t4.media_preview) AS asset_media_preview, 	
-	COALESCE(t3.transferable,t4.transferable) AS transferable,	
-	COALESCE(t3.burnable,t4.burnable) AS burnable,
-	t1.owner,
-	t2.collection_id,
-	t5.name AS collection_name,
-	t5.image AS collection_image,
-	t5.creator,
-	t5.shielded,
-	t5.blacklisted,
-	t5.blacklist_date,
-	t5.blacklist_reason,
-	t5.blacklist_actor,
-	t7.auction_id,
-	t7.auction_end AS auction_end_time,
-	t7.token as auction_token,
-	t7.starting_price as auction_starting_bid,
-	t7.current_bid as auction_current_bid,
-	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
-	t8.listing_id,
-	t8.listing_date,
-	t8.listing_token,
-	t8.listing_price,
-	t9.price,
-	t9.token,
-	COALESCE(COALESCE(t7.current_bid,t7.starting_price),t8.listing_price) AS filter_price_usd
-FROM atomicassets_asset_owner_log t1
-inner JOIN atomicassets_asset t2 ON t1.asset_id=t2.asset_id
-LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
-LEFT JOIN soonmarket_template_v t4 ON t2.template_id=t4.template_id
-LEFT JOIN soonmarket_collection_v t5 on t2.collection_id=t5.collection_id
-left JOIN LATERAL (SELECT auction_id,auction_end,token,starting_price,current_bid,bundle from soonmarket_auction_base_v where t1.asset_id=asset_id AND active) t7 ON true
-left JOIN LATERAL (SELECT listing_id,listing_date,listing_token,listing_price,bundle from soonmarket_listing_valid_v where t1.asset_id=asset_id)t8 ON true
-LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id AND buyer=OWNER
-WHERE t1.CURRENT AND NOT blacklisted;
-
-COMMENT ON VIEW soonmarket_my_nfts_v IS 'View for MyNFTs';
 
 -----------------------------------------
 -- Manage NFTs View
