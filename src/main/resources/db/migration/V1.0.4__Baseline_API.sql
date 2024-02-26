@@ -42,6 +42,7 @@ COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get open buyoffers for given asse
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
 (
+		id bigserial PRIMARY KEY,
     blocknum bigint,
     block_timestamp bigint,
 		_card_state text,
@@ -478,6 +479,7 @@ COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all listings for a given e
 
 CREATE OR REPLACE VIEW soonmarket_edition_bundles_v AS
 SELECT
+	gen_random_uuid () as id,
 	asset_id,	
 	SERIAL,
 	template_id,
@@ -503,6 +505,7 @@ FROM soonmarket_edition_listings_v WHERE bundle_size IS NOT NULL AND
 	WHERE v1.template_id=template_id AND v1.listing_id=listing_id GROUP BY template_id,listing_id)
 UNION 
 SELECT  
+	gen_random_uuid () as id,
 	asset_id,	
 	SERIAL,
 	template_id,
