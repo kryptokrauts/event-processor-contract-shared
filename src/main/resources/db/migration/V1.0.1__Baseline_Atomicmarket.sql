@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_auction
     token TEXT NOT NULL,
     collection_fee double precision NOT NULL,
     maker_marketplace TEXT NOT NULL,
+		collection_id text,
     seller TEXT NOT NULL,
     PRIMARY KEY (auction_id)
 )
@@ -387,6 +388,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer
     token TEXT,
     collection_fee double precision,
     maker_marketplace TEXT NOT NULL,
+		collection_id text,
     seller TEXT,
     buyer TEXT,
     memo TEXT,
