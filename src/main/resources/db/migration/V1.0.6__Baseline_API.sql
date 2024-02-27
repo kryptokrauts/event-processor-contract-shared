@@ -231,12 +231,14 @@ SELECT
 	t5.image AS collection_image,
 	t5.collection_fee AS royalty,
 	t5.creator,
+	t6.has_kyc,
 	t5.shielded
 FROM atomicassets_asset t1
 LEFT JOIN atomicassets_asset_owner_log t2 ON t1.asset_id=t2.asset_id AND t2.current 
 LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
 LEFT JOIN soonmarket_template_v t4 ON t1.template_id=t4.template_id
-LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id	
+LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id
+LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account	
 where not blacklisted
 )
 SELECT 
@@ -247,6 +249,7 @@ SELECT
 	t7.token as auction_token,
 	t7.starting_price as auction_starting_bid,
 	t7.current_bid as auction_current_bid,
+	t7.num_bids,
 	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
 	COALESCE(t7.bundle_size,t8.bundle_size,null) AS bundle_size,		
 	t8.listing_id,
@@ -256,7 +259,13 @@ SELECT
 	t9.price, 
 	t9.token, 
 	COALESCE(t7.token,t8.listing_token) AS filter_token,
-	COALESCE(COALESCE(t7.current_bid_usd,t7.starting_price_usd),t8.listing_price_usd) AS filter_price_usd
+	COALESCE(COALESCE(t7.current_bid_usd,t7.starting_price_usd),t8.listing_price_usd) AS filter_price_usd,
+	ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) - 
+	CASE 
+		WHEN t7.auction_id IS NOT NULL THEN t7.auction_end 
+		WHEN t8.listing_id IS NOT NULL THEN t8.listing_date
+		ELSE t1.mint_date END 
+	) AS sort_date
 INTO soonmarket_nft
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
@@ -283,6 +292,11 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_templateid_creator_editionsize
     (template_id,creator,edition_size)
     TABLESPACE pg_default;	
 
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burned_owner
+    ON public.soonmarket_nft USING btree
+    (burned,owner)
+    TABLESPACE pg_default;				
+
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_editionsize
     ON public.soonmarket_nft USING btree
     (edition_size)
@@ -306,7 +320,12 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_has_offers
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_kyced
     ON public.soonmarket_nft USING btree
     (has_kyc)
-    TABLESPACE pg_default;							
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_sort_date
+    ON public.soonmarket_nft USING btree
+    (sort_date)
+    TABLESPACE pg_default;									
 
 -----------------------------------------
 -- Manage NFTs View
@@ -350,38 +369,31 @@ COMMENT ON VIEW soonmarket_manageable_edition_nft_v IS 'View for manageable edit
 -- Collection Detail View
 ----------------------------------
 
-CREATE VIEW soonmarket_collection_detail_v AS
+CREATE OR replace VIEW soonmarket_collection_detail_v AS
+WITH valid_sales AS (
+      SELECT t1_1.sale_id AS listing_id,t1_1.collection_id,
+         bool_and(COALESCE((t4.owner = t1_1.seller), false)) AS valid
+        FROM ((atomicmarket_sale t1_1
+          JOIN atomicmarket_sale_asset t3_1 ON ((t1_1.sale_id = t3_1.sale_id)))
+          LEFT JOIN atomicassets_asset_owner_log t4 ON (((t3_1.asset_id = t4.asset_id) AND t4.current AND (NOT t4.burned))))
+       WHERE (NOT (EXISTS ( SELECT 1
+                FROM atomicmarket_sale_state t2_1
+               WHERE (t1_1.sale_id = t2_1.sale_id))))
+       GROUP BY t1_1.sale_id,t1_1.collection_id
+     )
 SELECT                                                                            
 t1.collection_id,                                                                 
 t1.creator,                                                                       
 t3.royalty as collection_fee,                                                                       
 t2.category,                                                                      
 t2.image,          
-(SELECT COUNT(*) FROM atomicassets_asset WHERE collection_id=t1.collection_id) AS num_nfts,
-(SELECT COUNT(DISTINCT owner) FROM soonmarket_asset_base_v WHERE collection_id=t1.collection_id) AS num_holders,
-(SELECT COUNT(*) FROM soonmarket_listing_v v WHERE v.collection_id=t1.collection_id AND VALID and STATE is null) AS num_listings,
-(SELECT COUNT(*) FROM atomicmarket_sale sl1 inner join atomicmarket_sale_state sl2 ON sl1.sale_id=sl2.sale_id WHERE sl1.collection_id=t1.collection_id AND STATE=3) AS total_sales,
+(SELECT COUNT(*) FROM soonmarket_asset_base_v WHERE collection_id=t1.collection_id AND NOT burned) AS num_nfts,
+(SELECT count(DISTINCT account) FROM soonmarket_collection_holder_v WHERE collection_id=t1.collection_id) AS num_holders,
+(SELECT COUNT(DISTINCT listing_id) FROM valid_sales v WHERE v.collection_id=t1.collection_id) AS num_listings,
+(SELECT total_sales FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id)  AS total_sales,
 0 AS num_stars,
-0 AS totalVolumeUSD,
 DATA ->> 'url' AS socials,
-/* REFRESH MATERIALIZED VIEW CONCURRENTLY!
-(
-	SELECT
-		sum(her.usd*price) 
-	FROM
-	(
-		SELECT sl.listing_price AS price,sl.listing_date AS utc_date, listing_token AS token FROM soonmarket_listing_v sl WHERE sl.collection_id=t1.collection_id AND STATE=3 
-		UNION ALL
-		SELECT sl.auction_current_bid,sl.auction_end_date, auction_token FROM soonmarket_auction_v sl WHERE sl.collection_id=t1.collection_id AND STATE=3 
-		UNION ALL
-		SELECT sl.auction_current_bid,sl.auction_end_date, auction_token FROM atomicmarket_buyoffer_state sl WHERE sl.collection_id=t1.collection_id AND STATE=3 
-	)vol	
-	LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-	her.utc_date=get_utc_date_f(vol.utc_date) 
-	AND her.token_symbol=vol.token
-) AS total_volume_usd,
-*/
-'' AS top_holders,
+(SELECT total_volume_usd FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id) AS total_volume_usd,
 (SELECT string_agg(SCHEMA_NAME,',') FROM atomicassets_schema sc WHERE sc.collection_id=t1.collection_id GROUP BY sc.collection_id) AS schemes,
 DATA ->> 'banner' AS banner,
 (SELECT listing_token FROM soonmarket_listing_v sl,soonmarket_exchange_rate_latest_v er WHERE sl.collection_id=t1.collection_id AND er.token_symbol=sl.listing_token AND NOT bundle AND VALID AND STATE IS null ORDER BY (listing_price*er.usd) ASC LIMIT 1) AS floor_price_token,
@@ -404,8 +416,7 @@ LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
-LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON true;;
-
+LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE;
 ----------------------------------
 -- Edition
 ----------------------------------
