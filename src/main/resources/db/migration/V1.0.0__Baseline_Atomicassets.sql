@@ -117,7 +117,7 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_template_id
     (template_id)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_template_collection_id_id
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_template_id_collection_id_id
     ON public.soonmarket_realtime_event USING btree
     (asset_id,template_id,collection_id,id)
     TABLESPACE pg_default;
@@ -128,6 +128,36 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_data
     TABLESPACE pg_default;													
 
 COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for retrieving historic entries';
+
+--
+
+CREATE TABLE public.soonmarket_realtime_event_bundles
+(		id bigint not null,		
+		asset_id bigint NULL,
+		template_id bigint NULL,
+		PRIMARY KEY(id,asset_id)
+ )
+TABLESPACE pg_default;
+
+COMMENT ON TABLE public.soonmarket_realtime_event_bundles IS 'Stores realtime events for single assets';
+
+--
+
+CREATE or replace VIEW soonmarket_realtime_event_asset_v as
+SELECT 
+t1.id,
+t1.global_sequence,
+t1.blocknum,
+t1.block_timestamp,
+t1.asset_id,
+t2.template_id,
+t1.collection_id,
+t1.type,
+t1.data
+FROM soonmarket_realtime_event t1
+LEFT JOIN soonmarket_realtime_event_bundles t2 ON t1.id=t2.id AND t1.asset_id=t2.asset_id;
+
+COMMENT ON VIEW public.soonmarket_realtime_event_asset_v IS 'View to retrieve realtime events for single assets';
 
 ----------------------------------
 -- offer tables
@@ -196,6 +226,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_transfer
 		bundle boolean,
 		bundle_size int,		
     memo text NULL,	
+		collection_id text,
 		PRIMARY KEY(transfer_id)
 )
 TABLESPACE pg_default;

@@ -372,6 +372,51 @@ FROM soonmarket_buyoffer_v t1;
 COMMENT ON VIEW soonmarket_buyoffer_bundle_assets_v IS 'Get bundle assets for a buyoffer';
 
 ----------------------------------
+-- base views for transfer
+----------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_transfer_v AS
+SELECT 
+	gen_random_uuid() AS id,
+	t1.blocknum AS blocknum, 
+	t1.block_timestamp AS transfer_date,
+	t1.transfer_id,
+	t2.asset_id,
+	t4.template_id,
+	t2.index,
+	t4.serial,
+	t4.edition_size,
+	t4.asset_name,
+	t4.asset_media,
+	t4.asset_media_type,
+	t4.asset_media_preview,
+	t4.owner,
+	t1.bundle,
+	t1.memo
+FROM atomicassets_transfer t1
+LEFT JOIN atomicassets_transfer_asset t2 ON t1.transfer_id=t2.transfer_id
+LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;
+
+COMMENT ON VIEW soonmarket_transfer_v IS 'Transfers for given asset or template';
+
+CREATE OR REPLACE VIEW soonmarket_transfer_bundle_assets_v as
+SELECT 
+	t1.transfer_id,
+	t1.asset_id,
+	t1.index,
+	t1.template_id,
+	t1.asset_name,
+	t1.asset_media,
+	t1.asset_media_type,
+	t1.asset_media_preview,
+	t1.serial,
+	t1.edition_size,
+	t1.owner
+FROM soonmarket_transfer_v t1;
+
+COMMENT ON VIEW soonmarket_transfer_bundle_assets_v IS 'Get bundle assets for a transfer';
+
+----------------------------------
 -- last sold for views
 ----------------------------------
 

@@ -390,10 +390,10 @@ t2.image,
 (SELECT COUNT(*) FROM soonmarket_asset_base_v WHERE collection_id=t1.collection_id AND NOT burned) AS num_nfts,
 (SELECT count(DISTINCT account) FROM soonmarket_collection_holder_v WHERE collection_id=t1.collection_id) AS num_holders,
 (SELECT COUNT(DISTINCT listing_id) FROM valid_sales v WHERE v.collection_id=t1.collection_id) AS num_listings,
-(SELECT total_sales FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id)  AS total_sales,
+(SELECT total_sales FROM soonmarket_collection_stats_v stats WHERE stats.collection_id=t1.collection_id)  AS total_sales,
 0 AS num_stars,
 DATA ->> 'url' AS socials,
-(SELECT total_volume_usd FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id) AS total_volume_usd,
+(SELECT total_volume_usd FROM soonmarket_collection_stats_v stats WHERE stats.collection_id=t1.collection_id) AS total_volume_usd,
 (SELECT string_agg(SCHEMA_NAME,',') FROM atomicassets_schema sc WHERE sc.collection_id=t1.collection_id GROUP BY sc.collection_id) AS schemes,
 DATA ->> 'banner' AS banner,
 (SELECT listing_token FROM soonmarket_listing_v sl,soonmarket_exchange_rate_latest_v er WHERE sl.collection_id=t1.collection_id AND er.token_symbol=sl.listing_token AND NOT bundle AND VALID AND STATE IS null ORDER BY (listing_price*er.usd) ASC LIMIT 1) AS floor_price_token,
@@ -417,6 +417,7 @@ LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_i
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
 LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE;
+
 ----------------------------------
 -- Edition
 ----------------------------------
@@ -569,8 +570,10 @@ CREATE OR replace VIEW soonmarket_profile_v as
 SELECT 
 	t1.*,
 	(SELECT COUNT(*) FROM soonmarket_asset_owner_v t2 WHERE t2.owner=t1.account ) AS num_nfts,
-	(SELECT COUNT(*) FROM soonmarket_listing_v t2 WHERE STATE=3 AND t2.buyer=t1.account) AS num_bought,
-	(SELECT MAX(t2.listing_date) FROM soonmarket_listing_v t2 WHERE STATE=3 AND t2.buyer=t1.account) AS last_bought,
-	(SELECT COUNT(*) FROM soonmarket_listing_v t2 WHERE STATE=3 AND t2.seller=t1.account) AS num_sold,
-	(SELECT MAX(t2.listing_date) FROM soonmarket_listing_v t2 WHERE STATE=3 AND t2.seller=t1.account) AS last_sold
-FROM soonmarket_profile t1;
+	COALESCE(t2.num_bought,0) AS num_bought,
+	t2.last_bought AS last_bought,
+	COALESCE(t3.num_sold,0) AS num_sold,
+	t3.last_sold AS last_sold
+FROM soonmarket_profile t1
+LEFT JOIN LATERAL (select COUNT(*) AS num_bought, MAX(block_timestamp) AS last_bought from soonmarket_sale_stats_v where t1.account=buyer GROUP BY buyer LIMIT 1)t2 ON TRUE
+LEFT JOIN LATERAL (select COUNT(*) AS num_sold, MAX(block_timestamp) AS last_sold from soonmarket_sale_stats_v where t1.account=seller GROUP BY seller LIMIT 1)t3 ON TRUE;
