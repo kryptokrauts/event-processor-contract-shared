@@ -194,8 +194,9 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_transfer
     sender text NOT NULL,
     receiver text NOT NULL,
 		bundle boolean,
-		bundle_size int,
+		bundle_size int,		
     memo text NULL,
+		collection_id text,		
 		PRIMARY KEY(transfer_id)
 )
 TABLESPACE pg_default;
