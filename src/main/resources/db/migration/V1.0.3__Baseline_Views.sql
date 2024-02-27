@@ -148,7 +148,7 @@ SELECT
 	t1.price AS starting_price,
 	er.usd * t1.price AS starting_price_usd,	
 	t4.current_bid,
-	t4.bid_number AS num_bids
+	t4.bid_number AS num_bids,
 	er.usd * t4.current_bid AS current_bid_usd,
 	t1.token,
 	t1.collection_fee,

@@ -1,4 +1,35 @@
 ----------------------------------
+-- Collection Holder
+----------------------------------
+
+CREATE OR replace VIEW soonmarket_collection_holder_v AS
+WITH collection_total AS(
+	SELECT 
+	COUNT(*) AS total, 
+	collection_id
+	FROM atomicassets_asset GROUP BY collection_Id
+),
+collection_owner AS (
+	SELECT 
+	t2.owner AS account,
+	t1.collection_id
+	FROM atomicassets_asset_owner_log  t2
+	LEFT JOIN atomicassets_asset t1 ON t1.asset_id=t2.asset_id AND current AND NOT burned
+)
+SELECT	
+	account,
+	t1.collection_id,
+	total,
+	COUNT(*) AS num_nfts,
+	0 as num_bought,
+round_to_decimals_f((COUNT(*)::DOUBLE PRECISION / total) * 100) AS owned
+FROM collection_owner t1
+LEFT JOIN collection_total t2 ON t1.collection_id=t2.collection_id
+GROUP BY t1.collection_id, account,total;
+
+COMMENT ON VIEW soonmarket_collection_holder_v IS 'List of collection holders and stats';
+
+----------------------------------
 -- Global Stats
 ----------------------------------
 CREATE OR REPLACE VIEW soonmarket_global_stats_24h_v as
