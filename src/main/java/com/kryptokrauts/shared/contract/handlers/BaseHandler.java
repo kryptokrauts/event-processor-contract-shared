@@ -38,6 +38,7 @@ public abstract class BaseHandler {
     transformed.setContext(context);
     transformed.setType(event.getType());
     transformed.setData(this.objectMapper.writeValueAsString(dataMap));
+    transformed.setGlobalSequence(event.getGlobal_sequence());
 
     this.emitTransformedMessage(transformed, realtimeEventEmitter);
   }

@@ -190,6 +190,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_transfer
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,    
  		transfer_id bigserial,
+		primary_asset_id bigserial,
     sender text NOT NULL,
     receiver text NOT NULL,
 		bundle boolean,

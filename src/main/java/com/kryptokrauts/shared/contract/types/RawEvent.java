@@ -19,4 +19,6 @@ public class RawEvent implements Serializable {
   private String transaction_id;
 
   private Object data;
+
+  private Long global_sequence;
 }

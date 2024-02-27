@@ -8,6 +8,10 @@
 			"type": "long"
 		},
 		{
+			"name": "global_sequence",
+			"type": "long"
+		},
+		{
 			"name": "block_timestamp",
 			"type": "long"
 		},

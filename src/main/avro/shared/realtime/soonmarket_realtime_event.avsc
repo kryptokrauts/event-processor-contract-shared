@@ -12,6 +12,10 @@
 			"type": "long"
 		},
 		{
+			"name": "global_sequence",
+			"type": "long"
+		},
+		{
 			"name": "asset_id",
 			"type": ["null","long"]
 		},
