@@ -36,6 +36,39 @@ LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
 
 COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get open buyoffers for given asset or template';
 
+--
+
+CREATE OR REPLACE VIEW soonmarket_my_offers_v AS
+SELECT 
+	t1.blocknum AS blocknum, 
+	t1.block_timestamp AS buyoffer_date,
+	t1.buyoffer_id,
+	t1.primary_asset_id AS asset_id,
+	t4.template_id,
+	t4.serial,
+	t4.edition_size,
+	t4.asset_name,
+	t4.asset_media,
+	t4.asset_media_type,
+	t4.asset_media_preview,
+	t4.owner,
+	t5.collection_id,
+	t5.name AS collection_name,
+	t5.image as collection_image,
+	t1.seller,
+	t1.buyer,
+	t1.bundle,
+	t1.bundle_size,
+	t1.token,
+	t1.price,
+	t1.memo,
+	t1.collection_fee AS royalty
+FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
+LEFT JOIN soonmarket_asset_base_v t4 ON t1.primary_asset_id=t4.asset_id
+LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
+
+COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get my open buyoffers for given asset or template';
+
 ----------------------------------
 -- NFT Card View
 ----------------------------------
