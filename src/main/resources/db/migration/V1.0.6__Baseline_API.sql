@@ -112,10 +112,8 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
     last_sold_for_market_fee_usd numeric,    
     listing_id bigint,
     listing_price double precision,
-    listing_price_usd numeric,
     listing_token text ,
     listing_royalty double precision,
-    listing_market_fee numeric,
     listing_date bigint,
     listing_seller text ,
     bundle boolean,
@@ -193,12 +191,28 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_listing_date
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_mint_date
     ON public.soonmarket_nft_card USING btree
     (mint_date)
-    TABLESPACE pg_default;			
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_listing_id
+    ON public.soonmarket_nft_card USING btree
+    (listing_id)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_auction_id
+    ON public.soonmarket_nft_card USING btree
+    (auction_id)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_card_edition_size
+    ON public.soonmarket_nft_card USING btree
+    (edition_size)
+    TABLESPACE pg_default;								
 
 --
 
 CREATE OR REPLACE VIEW soonmarket_nft_card_v AS
-SELECT t1.*,ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) - 
+SELECT t1.*,
+ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) - 
 CASE 
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_end_date 
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_date
@@ -235,7 +249,7 @@ LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 
 -----------------------------------------
--- MyNFTs View
+-- MyNFTs Table
 -----------------------------------------
 
 WITH asset_owner AS(
@@ -278,10 +292,11 @@ SELECT
 	t1.*,
 	t10.asset_id is not null as has_offers,
 	t7.auction_id,
-	t7.auction_end AS auction_end_time,
+	t7.auction_end AS auction_end_date,
 	t7.token as auction_token,
 	t7.starting_price as auction_starting_bid,
 	t7.current_bid as auction_current_bid,
+	t7.collection_fee AS auction_royalty,	
 	t7.num_bids,
 	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
 	COALESCE(t7.bundle_size,t8.bundle_size,null) AS bundle_size,		
@@ -289,22 +304,19 @@ SELECT
 	t8.listing_date,
 	t8.listing_token,
 	t8.listing_price,
+	t8.listing_royalty,
 	t9.price, 
 	t9.token, 
-	COALESCE(t7.token,t8.listing_token) AS filter_token,
-	COALESCE(COALESCE(t7.current_bid_usd,t7.starting_price_usd),t8.listing_price_usd) AS filter_price_usd,
-	ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) - 
-	CASE 
-		WHEN t7.auction_id IS NOT NULL THEN t7.auction_end 
-		WHEN t8.listing_id IS NOT NULL THEN t8.listing_date
-		ELSE t1.mint_date END 
-	) AS sort_date
+	COALESCE(t7.token,t8.listing_token) AS filter_token
 INTO soonmarket_nft
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
 left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id  
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
 LEFT JOIN LATERAL (select asset_id from soonmarket_buyoffer_open_v where t1.asset_id=asset_id limit 1)t10 ON true;
+
+ALTER TABLE soonmarket_nft ADD COLUMN id bigserial;
+ALTER TABLE soonmarket_nft ADD CONSTRAINT pk_soonmarket_nft PRIMARY KEY (id);
 
 COMMENT ON TABLE soonmarket_nft IS 'Base NFT table';
 COMMENT ON COLUMN soonmarket_nft.price IS 'Last sold for price';
@@ -355,10 +367,61 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_kyced
     (has_kyc)
     TABLESPACE pg_default;	
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_sort_date
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_listing_date
     ON public.soonmarket_nft USING btree
-    (sort_date)
-    TABLESPACE pg_default;									
+    (listing_date)
+    TABLESPACE pg_default;
+	
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_auction_end_date
+    ON public.soonmarket_nft USING btree
+    (auction_end_date)
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_mint_date
+    ON public.soonmarket_nft USING btree
+    (mint_date)
+    TABLESPACE pg_default;		
+		
+CREATE INDEX IF NOT EXISTS idx_soonmarket_asset_id
+    ON public.soonmarket_nft USING btree
+    (asset_id)
+    TABLESPACE pg_default;	
+	
+CREATE INDEX IF NOT EXISTS idx_soonmarket_template_id
+    ON public.soonmarket_nft USING btree
+    (template_id)
+    TABLESPACE pg_default;
+	
+CREATE INDEX IF NOT EXISTS idx_soonmarket_collection_id
+    ON public.soonmarket_nft USING btree
+    (collection_id)
+    TABLESPACE pg_default;										
+
+----------------------------------
+-- MyNFTs View
+----------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_nft_v AS
+SELECT t1.*,
+ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) - 
+CASE 
+	WHEN t1.auction_id IS NOT NULL THEN t1.auction_end_date 
+	WHEN t1.listing_id IS NOT NULL THEN t1.listing_date
+	ELSE t1.mint_date END 
+) AS sort_date,
+round_to_decimals_f(CASE 
+	WHEN t1.listing_id IS NOT NULL THEN t1.listing_price 
+	WHEN t1.auction_id IS NOT null THEN COALESCE(t1.auction_current_bid,t1.auction_starting_bid)
+	END * e.usd)
+	AS filter_price_usd
+FROM soonmarket_nft t1
+LEFT JOIN soonmarket_exchange_rate_latest_v e ON e.token_symbol = 
+CASE 
+	WHEN t1.listing_id IS NOT NULL THEN t1.listing_token
+	WHEN t1.auction_id IS NOT NULL THEN t1.auction_token
+END;
+
+COMMENT ON VIEW soonmarket_nft_v IS 'View for MyNFTs with dynamic price resolution for filtering';
 
 -----------------------------------------
 -- Manage NFTs View
@@ -384,9 +447,9 @@ FROM (
 	FROM soonmarket_nft t1
 	WHERE edition_size != 1
 	GROUP BY template_id,edition_size,creator) t1
-LEFT JOIN LATERAL (SELECT * from soonmarket_nft WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
+LEFT JOIN LATERAL (SELECT * from soonmarket_nft_v WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
 UNION ALL
-SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft WHERE edition_size=1)t;
+SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft_v WHERE edition_size=1)t;
 
 COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent row, creators)';
 
@@ -394,7 +457,7 @@ COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent
 
 CREATE OR replace VIEW soonmarket_manageable_edition_nft_v as
 	SELECT * 
-	FROM soonmarket_nft WHERE edition_size!=1;
+	FROM soonmarket_nft_v WHERE edition_size!=1;
 
 COMMENT ON VIEW soonmarket_manageable_edition_nft_v IS 'View for manageable edition NFTs (child row, creators)';	
 

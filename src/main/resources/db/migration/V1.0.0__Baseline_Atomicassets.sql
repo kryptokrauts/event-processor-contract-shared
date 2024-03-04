@@ -2,6 +2,21 @@
 -- default tables
 ----------------------------------	
 
+CREATE TABLE IF NOT EXISTS public.soonmarket_processor_sync_state
+(
+    timestamp bigint NOT NULL,
+    processor text PRIMARY KEY ,
+    head_block bigint,
+    current_block bigint,
+    time_left_until_synced bigint,
+    in_sync boolean,
+    diff bigint,
+    current_sync_date text    
+)
+TABLESPACE pg_default;
+
+--
+
 CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
 (
 		id bigserial PRIMARY KEY,
@@ -775,3 +790,25 @@ FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('asset_id');
 CREATE TRIGGER atomicassets_format_log_set_current_tr
 BEFORE INSERT ON public.atomicassets_schema_format_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('schema_id','collection_id');
+
+---------------------------------------------------------
+-- Trigger update time measurement
+---------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION soonmarket_processor_sync_state_timeleft_f()
+RETURNS TRIGGER AS $$
+
+BEGIN 
+	
+	IF NEW.timestamp-OLD.timestamp > 0 THEN
+	NEW.time_left_until_synced = NEW.diff::DOUBLE PRECISION / 
+		(abs(OLD.diff - NEW.diff)::DOUBLE PRECISION / (NEW.timestamp::DOUBLE PRECISION - OLD.timestamp::DOUBLE PRECISION)) / 1000;
+	END IF;
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER soonmarket_processor_sync_state_timeleft_tr
+BEFORE UPDATE ON public.soonmarket_processor_sync_state
+FOR EACH ROW 
+EXECUTE FUNCTION soonmarket_processor_sync_state_timeleft_f();

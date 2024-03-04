@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_blacklist
     collection_id TEXT NOT NULL,
     reporter TEXT NOT NULL,
     reporter_comment TEXT NULL,
-    reviewer TEXT NOT NULL,
+    reviewer TEXT NULL,
     reviewer_comment TEXT NULL,
     PRIMARY KEY (collection_id)
 )
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
     collection_id TEXT NOT NULL,
     reporter TEXT NOT NULL,
     reporter_comment TEXT NULL,
-		reviewer TEXT NOT NULL,
+		reviewer TEXT NULL,
     reviewer_comment TEXT NULL,
     PRIMARY KEY (collection_id)
 )

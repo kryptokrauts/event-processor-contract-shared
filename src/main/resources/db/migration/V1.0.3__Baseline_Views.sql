@@ -79,7 +79,7 @@ SELECT
 	t4.owner,
 	CASE WHEN t1.template_id IS NOT NULL THEN t5.transferable ELSE TRUE END AS transferable,
 	CASE WHEN t1.template_id IS NOT NULL THEN t5.burnable ELSE TRUE END AS burnable,
-	CASE WHEN t4.burned THEN TRUE ELSE FALSE END AS burned
+	t4.burned
 FROM atomicassets_asset t1
 LEFT JOIN atomicassets_asset_data t2 ON t1.asset_id = t2.asset_id
 LEFT JOIN atomicassets_asset_owner_log t4 ON t1.asset_id = t4.asset_id AND t4.current
@@ -174,7 +174,7 @@ SELECT
 	t3.template_id,
 	t3.collection_id,
 	t2.state,
-	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000)  as active,
+	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000) AND STATE IS NULL as active,
 	t1.block_timestamp AS auction_start_date,
 	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end_date,
 	t1.token AS auction_token,
@@ -188,7 +188,7 @@ SELECT
 	t4.bid_number AS num_bids,
 	t4.bidder AS highest_bidder,
 	t1.bundle_size,
-	t1.bundle_size is not null as bundle,
+	t1.bundle,
 	t5.transferable,
 	t5.burnable,
 	CASE WHEN t4.updated_end_time is not null THEN true ELSE false end as bumped,
@@ -232,10 +232,11 @@ CREATE OR replace VIEW soonmarket_listing_valid_v as
 WITH valid_sales AS (
 SELECT 
 	t1.sale_id,
-	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID
+	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID,
+	BOOL_OR(burned) AS burned
 FROM atomicmarket_sale t1 
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
-LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current and not t4.burned
+LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current
 WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 where t1.sale_id=t2.sale_id)
 GROUP BY t1.sale_id
 )
@@ -257,7 +258,7 @@ FROM valid_sales t1
 INNER JOIN atomicmarket_sale t2 ON t1.sale_id=t2.sale_id
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
 LEFT JOIN soonmarket_exchange_rate_latest_v er ON t2.token = er.token_symbol
-where VALID;
+where  VALID AND not burned;
 
 --
 
