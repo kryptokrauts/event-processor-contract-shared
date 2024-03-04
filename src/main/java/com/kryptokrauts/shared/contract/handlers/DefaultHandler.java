@@ -1,8 +1,10 @@
 package com.kryptokrauts.shared.contract.handlers;
 
+import com.kryptokrauts.shared.contract.types.NodeSyncStatusEvent;
 import com.kryptokrauts.shared.contract.types.RawEvent;
 import com.kryptokrauts.shared.contract.types.ResetEvent;
 import contracts.event_log;
+import contracts.node_sync_status_event;
 import contracts.reset;
 import io.quarkus.runtime.Quarkus;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -20,6 +22,10 @@ public class DefaultHandler extends BaseHandler {
   @Inject
   @Channel("structured")
   Emitter<reset> resetEmitter;
+
+  @Inject
+  @Channel("structured")
+  Emitter<node_sync_status_event> nodeSyncStatusEmitter;
 
   /**
    * persist event in event_log table
@@ -76,5 +82,25 @@ public class DefaultHandler extends BaseHandler {
           event.getReset_blocknum());
       Quarkus.asyncExit(-1);
     }
+  }
+
+  /**
+   * persist node sync status event
+   *
+   * @param event
+   */
+  public void handleNodeSyncStatus(NodeSyncStatusEvent event, String context) {
+    BaseHandler.logger.debugf("Handling incoming node sync status event");
+
+    node_sync_status_event sync_event = new node_sync_status_event();
+    sync_event.setTimestamp(event.getTimestamp());
+    sync_event.setProcessor(context);
+    sync_event.setHeadBlock(event.getHead_block());
+    sync_event.setCurrentBlock(event.getCurrent_block());
+    sync_event.setDiff(event.getDiff());
+    sync_event.setInSync(event.getIn_sync());
+    sync_event.setCurrentSyncDate(event.getCurrent_sync_date());
+
+    this.emitTransformedMessage(sync_event, this.nodeSyncStatusEmitter);
   }
 }
