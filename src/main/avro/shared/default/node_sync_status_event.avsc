@@ -1,0 +1,35 @@
+{
+	"type": "record",
+	"name": "node_sync_status_event",
+	"namespace": "contracts",
+	"fields": [		
+		{
+			"name": "timestamp",
+			"type": "long"
+		},
+		{
+			"name": "processor",
+			"type": "string"
+		},
+		{
+			"name": "head_block",
+			"type": "long"
+		},
+		{
+			"name": "current_block",
+			"type": "long"
+		},
+		{
+			"name": "diff",
+			"type": "long"
+		},
+		{
+			"name": "in_sync",
+			"type": "boolean"
+		},
+		{
+			"name": "current_sync_date",
+			"type": ["null","string"]
+		}
+	]
+}
