@@ -52,7 +52,7 @@ t4.notify_accounts,
 t4.authorized_accounts,                                                           
 t2.data,
 st1.total_sales,
-st1.total_volume_usd,
+st1.total_volume_usd
 FROM atomicassets_collection t1                                                   
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current
