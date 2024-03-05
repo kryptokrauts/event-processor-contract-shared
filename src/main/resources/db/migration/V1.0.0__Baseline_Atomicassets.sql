@@ -800,7 +800,7 @@ RETURNS TRIGGER AS $$
 
 BEGIN 
 	
-	IF NEW.timestamp-OLD.timestamp > 0 THEN
+	IF NEW.timestamp-OLD.timestamp > 0 AND abs(OLD.diff - NEW.diff) > 0 THEN
 	NEW.time_left_until_synced = NEW.diff::DOUBLE PRECISION / 
 		(abs(OLD.diff - NEW.diff)::DOUBLE PRECISION / (NEW.timestamp::DOUBLE PRECISION - OLD.timestamp::DOUBLE PRECISION)) / 1000;
 	END IF;

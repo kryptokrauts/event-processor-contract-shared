@@ -7,19 +7,19 @@ RETURNS TRIGGER AS $$
 DECLARE
     _card_asset_id bigint;
 	_card_template_id bigint;
-	_card_edition_size bigint;
+	_card_edition_size bigint;	
+	_listing_id_rec RECORD;
 BEGIN  
-	-- get all assets from the transfer, check if they are part of a now invalid listing and clear the tables in that case
-	WITH transfer_assets AS
-	(
-		SELECT asset_id FROM atomicassets_transfer_asset WHERE transfer_id=NEW.transfer_id
-	)
-	SELECT soonmarket_nft_tables_clear_f(null, listing_id) 
-	FROM(
-		SELECT DISTINCT listing_id AS listing_id
-	 	FROM soonmarket_listing_v 
-		WHERE asset_id IN (SELECT asset_id FROM transfer_assets) AND state is null AND NOT VALID
-	)t;
+	-- get all assets from the transfer, check if they are part of a now invalid listing and clear the tables in that case   
+    FOR _listing_id_rec IN 
+		SELECT DISTINCT listing_id FROM soonmarket_listing_v 
+        WHERE asset_id IN (SELECT asset_id FROM atomicassets_transfer_asset WHERE transfer_id = NEW.transfer_id)
+        AND state IS NULL AND NOT VALID
+    LOOP
+        PERFORM soonmarket_nft_tables_clear_f(null, _listing_id_rec.listing_id);
+    END LOOP;
+
+    RETURN NEW;
 	
 	-- update listing / unlisted cards for given template_id
 	WITH transfer_assets AS
@@ -445,7 +445,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER soonmarket_nft_tables_listing_created_tr
-AFTER INSERT OR UPDATE ON public.atomicmarket_sale
+AFTER INSERT ON public.atomicmarket_sale
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_nft_tables_listing_created_f();
 

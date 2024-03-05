@@ -95,35 +95,24 @@ floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000);
 -- Global Collection Stats
 ----------------------------------
 
-CREATE MATERIALIZED VIEW soonmarket_collection_stats_v as
+CREATE MATERIALIZED VIEW soonmarket_collection_stats_mv as
 SELECT
 	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
 	COUNT(*) AS total_sales,
-	collection_id,
-	sum(CASE WHEN _type = 'l' THEN 1 ELSE 0 END) AS sales,
-	sum(CASE WHEN _type = 'bl' THEN 1 ELSE 0 END) AS bundle_sales,
-	sum(CASE WHEN _type = 'a' THEN 1 ELSE 0 END) AS auctions,
-	sum(CASE WHEN _type = 'ba' THEN 1 ELSE 0 END) AS bundle_auctions,
-	sum(CASE WHEN _type = 'b' THEN 1 ELSE 0 END) AS buyoffers,
-	sum(CASE WHEN _type = 'bb' THEN 1 ELSE 0 END) AS bundle_buyoffers
+	vol.collection_id,
+	(Select count(distinct asset_id) from atomicassets_asset where collection_id=vol.collection_id) as num_nfts
 FROM
 (
-	SELECT DISTINCT sl.listing_id, sl.listing_price AS price,sl.listing_date AS utc_date, listing_token AS token,collection_id, 'l' AS _type FROM soonmarket_listing_v sl WHERE STATE=3 AND NOT bundle 
+	SELECT DISTINCT sl.listing_id, sl.listing_price AS price,sl.listing_date AS utc_date, listing_token AS token,collection_id FROM soonmarket_listing_v sl WHERE STATE=3	
 	UNION ALL
-	SELECT DISTINCT sl.listing_id, sl.listing_price AS price,sl.listing_date AS utc_date, listing_token AS token,collection_id, 'bl' AS _type FROM soonmarket_listing_v sl WHERE STATE=3 AND bundle
+	SELECT DISTINCT auction_id, sl.auction_current_bid,sl.auction_end_date, auction_token,collection_id FROM soonmarket_auction_v sl WHERE STATE=3
 	UNION ALL
-	SELECT DISTINCT auction_id, sl.auction_current_bid,sl.auction_end_date, auction_token,collection_id, 'a' FROM soonmarket_auction_v sl WHERE STATE=3 AND NOT bundle
-	UNION ALL
-	SELECT DISTINCT auction_id, sl.auction_current_bid,sl.auction_end_date, auction_token,collection_id, 'ba' FROM soonmarket_auction_v sl WHERE STATE=3 AND bundle
-	UNION ALL
-	SELECT DISTINCT buyoffer_id, price,buyoffer_update_date, token,collection_id,'b' FROM soonmarket_buyoffer_v  WHERE STATE=3 AND NOT bundle
-	UNION ALL
-	SELECT DISTINCT buyoffer_id, price,buyoffer_update_date, token,collection_id,'bb' FROM soonmarket_buyoffer_v  WHERE STATE=3 AND bundle
+	SELECT DISTINCT buyoffer_id, price,buyoffer_update_date, token,collection_id FROM soonmarket_buyoffer_v  WHERE STATE=3
 )vol	
 LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-her.utc_date=get_utc_date_f(vol.utc_date) 
+her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.utc_date / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
 AND her.token_symbol=vol.token
-GROUP BY collection_id;
+GROUP BY vol.collection_id
 
 ----------------------------------
 -- Timeframed Collection Stats

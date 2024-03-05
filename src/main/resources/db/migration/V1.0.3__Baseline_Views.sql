@@ -50,7 +50,9 @@ t2.image,
 t4.allow_notify,                                                                  
 t4.notify_accounts,                                                               
 t4.authorized_accounts,                                                           
-t2.data                                                                           
+t2.data,
+st1.total_sales,
+st1.total_volume_usd,
 FROM atomicassets_collection t1                                                   
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current
@@ -58,7 +60,8 @@ LEFT JOIN atomicassets_collection_account_log t4 ON t1.collection_id = t4.collec
 LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
-LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id;
+LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
+LEFT JOIN soonmarket_collection_stats_mv st1 ON t1.collection_id = st1.collection_id;
 
 ----------------------------------
 -- assets
@@ -344,7 +347,7 @@ SELECT
 	t1.collection_fee AS royalty,
 	t5.maker_market_fee,
 	t5.taker_market_fee,
-	t2.collection_id,
+	t1.collection_id,
 	t5.decline_memo
 FROM atomicmarket_buyoffer t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id

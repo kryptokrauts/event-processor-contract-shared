@@ -325,12 +325,13 @@ BEGIN
 	WITH deleted as(
 	DELETE FROM soonmarket_nft_card WHERE bundle AND listing_id in
 	(SELECT DISTINCT listing_id FROM soonmarket_listing_v WHERE bundle AND asset_id = _asset_id AND state is null AND NOT valid)
+	 RETURNING listing_id
 	)
 	-- get number of deleted cards
 	SELECT count(*) FROM deleted into _delete_count;
 
 	-- if bundles were delete, update num_bundles
-	IF deleted > 0 THEN
+	IF _delete_count > 0 THEN
 		UPDATE soonmarket_nft_card 
 		SET num_bundles = CASE WHEN num_bundles > _delete_count+1 THEN _delete_count ELSE NULL END 
 		WHERE template_id in (SELECT template_id from soonmarket_listing_bundle_assets_v WHERE listing_id = _listing_id);
