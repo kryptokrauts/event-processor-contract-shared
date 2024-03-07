@@ -1,0 +1,19 @@
+{
+	"type": "record",
+	"name": "soonmarket_realtime_bundle_event",
+	"namespace": "contracts",
+	"fields": [
+		{
+			"name": "id",
+			"type": "long"
+		},
+		{
+			"name": "asset_id",
+			"type": "long"
+		},
+		{
+			"name": "template_id",
+			"type": "long"
+		}	
+	]
+}
