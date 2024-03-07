@@ -90,7 +90,7 @@ COMMENT ON TABLE public.atomicassets_reset_log IS 'Store reset events. Whenever 
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
 (
-		id bigserial PRIMARY KEY,		
+		id bigserial,
 		global_sequence bigint,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
@@ -99,7 +99,8 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
 		collection_id text NOT NULL,
 		context text NOT NULL,
     type text NOT NULL,    
-    data jsonb NULL
+    data jsonb NULL,
+		PRIMARY KEY (global_sequence, type)
 )
 TABLESPACE pg_default;
 
