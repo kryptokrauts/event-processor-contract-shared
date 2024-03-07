@@ -19,7 +19,7 @@ SELECT
 	t1.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price 
 	FROM atomicmarket_buyoffer_state t2
 	LEFT JOIN atomicmarket_buyoffer t1 ON t1.buyoffer_id=t2.buyoffer_id
-	WHERE STATE=3;
+	WHERE STATE=3;	
 
 ----------------------------------
 -- Collection Holder
@@ -56,6 +56,8 @@ LEFT JOIN (select COUNT(buyer) AS num_bought, buyer, collection_id from soonmark
 GROUP BY t1.collection_id, account,total,burned,num_bought;
 
 COMMENT ON MATERIALIZED VIEW soonmarket_collection_holder_mv IS 'List of collection holders and stats';
+
+CREATE UNIQUE INDEX pk_soonmarket_collection_holder_mv ON soonmarket_collection_holder_mv (account,collection_id);
 
 ----------------------------------
 -- Global Stats
@@ -107,6 +109,8 @@ her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC'
 AND her.token_symbol=vol.token
 GROUP BY vol.collection_id;
 
+CREATE UNIQUE INDEX pk_soonmarket_collection_stats_mv ON soonmarket_collection_stats_mv (collection_id);
+
 ----------------------------------
 -- Timeframed Collection Stats
 ----------------------------------
@@ -143,6 +147,8 @@ LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collectio
 LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_valid_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
 LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
 
+CREATE UNIQUE INDEX pk_soonmarket_collection_stats_7d_mv ON soonmarket_collection_stats_7d_mv (collection_id);
+
 --
 
 CREATE MATERIALIZED VIEW soonmarket_collection_stats_30d_mv as
@@ -177,6 +183,8 @@ LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collectio
 LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_valid_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
 LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
 
+CREATE UNIQUE INDEX pk_soonmarket_collection_stats_30d_mv ON soonmarket_collection_stats_30d_mv (collection_id);
+
 --
 
 CREATE MATERIALIZED VIEW soonmarket_collection_stats_180d_mv as
@@ -210,3 +218,5 @@ LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_
 LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
 LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_valid_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
 LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
+
+CREATE UNIQUE INDEX pk_soonmarket_collection_stats_180d_mv ON soonmarket_collection_stats_180d_mv (collection_id);
