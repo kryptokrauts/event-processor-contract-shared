@@ -5,7 +5,7 @@
 CREATE TABLE IF NOT EXISTS public.soonmarket_processor_sync_state
 (
     timestamp bigint NOT NULL,
-    processor text PRIMARY KEY ,
+    processor text PRIMARY KEY,
     head_block bigint,
     current_block bigint,
     time_left_until_synced bigint,
@@ -159,10 +159,12 @@ COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for
 --
 
 CREATE TABLE public.soonmarket_realtime_event_bundle
-(		id bigint not null,		
+(		
+		id bigserial,
+		global_sequence bigint,
 		asset_id bigint NULL,
 		template_id bigint NULL,
-		PRIMARY KEY(id,asset_id)
+		PRIMARY KEY(global_sequence,asset_id)
  )
 TABLESPACE pg_default;
 

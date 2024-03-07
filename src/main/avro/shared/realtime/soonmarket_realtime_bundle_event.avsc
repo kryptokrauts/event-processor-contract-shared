@@ -4,7 +4,7 @@
 	"namespace": "contracts",
 	"fields": [
 		{
-			"name": "id",
+			"name": "global_sequence",
 			"type": "long"
 		},
 		{
