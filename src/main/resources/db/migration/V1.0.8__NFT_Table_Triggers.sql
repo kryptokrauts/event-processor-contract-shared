@@ -36,18 +36,20 @@ BEGIN
 	)t;
 	
 -- in case listing gets valid again
-	-- get valid listings
+	-- get valid listings		
 	WITH valid_listings AS (
-    	SELECT DISTINCT listing_id 
-    	FROM soonmarket_listing_valid_v 
-    	WHERE asset_id IN (SELECT asset_id FROM atomicassets_transfer_asset WHERE transfer_id = NEW.transfer_id)
+			SELECT DISTINCT listing_id 
+			FROM soonmarket_listing_valid_v 
+			WHERE asset_id IN (SELECT asset_id FROM atomicassets_transfer_asset WHERE transfer_id = NEW.transfer_id)
+	),
+	deleted_listings AS (
+			DELETE FROM atomicmarket_sale
+			WHERE sale_id IN (SELECT listing_id FROM valid_listings)
+			RETURNING *
 	)
 	-- for every valid listing that is not in soonmarket_nft, add listing by "simulating" a new listing
-	UPDATE atomicmarket_sale
-	SET sale_id = sale_id
-	FROM valid_listings t1
-	LEFT JOIN soonmarket_nft t2 ON t1.listing_id = t2.listing_id
-	WHERE atomicmarket_sale.sale_id = t1.listing_id AND t2.listing_id IS NULL;
+	INSERT INTO atomicmarket_sale 
+	SELECT * FROM deleted_listings;
 			
 	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
@@ -168,8 +170,8 @@ BEGIN
 -- soonmarket_nft: update auction data for all assets within auction (in case of bundle auction)
 	
 	UPDATE soonmarket_nft
-	SET (auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
-		(NEW.auction_id, NEW.end_time, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size)
+	SET (auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size, filter_token) =
+		(NEW.auction_id, NEW.end_time, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size, NEW.token)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = NEW.auction_id);
 	
 -- soonmarket_nft_card table
@@ -305,6 +307,7 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER soonmarket_nft_tables_burn_tr
 AFTER INSERT ON public.atomicassets_asset_owner_log
 FOR EACH ROW 
+WHEN (NEW.current AND NEW.burned)
 EXECUTE FUNCTION soonmarket_nft_tables_burn_f();
 
 ---------------------------------------------------------
@@ -383,8 +386,8 @@ BEGIN
 -- soonmarket_nft: update auction data for all assets within listing (in case of bundle listing)
 	
 	UPDATE soonmarket_nft
-	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
-		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size)
+	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size, filter_token) =
+		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size, NEW.token)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_sale_asset where sale_id = NEW.sale_id);
 	
 -- soonmarket_nft_card table
@@ -705,3 +708,41 @@ CREATE TRIGGER soonmarket_nft_tables_blacklist_tr
 AFTER INSERT ON public.soonmarket_internal_blacklist
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_nft_tables_blacklist_f();
+
+---------------------------------------------------------
+-- Trigger to update collection data
+---------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION soonmarket_nft_tables_update_collection_data_f()
+RETURNS TRIGGER AS $$
+
+BEGIN 	
+	IF NEW.current THEN
+-- soonmarket_nft: update collection data for all entries
+	
+		RAISE WARNING 'Updating collection data for collection_id %', NEW.collection_id;
+
+		UPDATE soonmarket_nft SET 
+			collection_name = NEW.name,
+			collection_image = NEW.image
+		WHERE collection_id = NEW.collection_id;
+
+-- soonmarket_nft_card: update collection data for all entries
+
+		UPDATE soonmarket_nft_card SET 
+			collection_name = NEW.name,
+			collection_image = NEW.image
+		WHERE collection_id = NEW.collection_id;
+
+		RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+	
+	END IF;
+
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER soonmarket_nft_tables_update_collection_data_tr
+AFTER INSERT ON public.atomicassets_collection_data_log
+FOR EACH ROW 
+EXECUTE FUNCTION soonmarket_nft_tables_update_collection_data_f();

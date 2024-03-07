@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
 		id bigserial PRIMARY KEY,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
+		global_sequence bigint NULL,
     transaction_id text NOT NULL,    
     type text NOT NULL,		
     data jsonb NULL    
@@ -122,25 +123,35 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_block_timestamp
     (block_timestamp)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_id
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_id
     ON public.soonmarket_realtime_event USING btree
     (asset_id)
     TABLESPACE pg_default;	
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_template_id
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_template_id
     ON public.soonmarket_realtime_event USING btree
     (template_id)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_template_id_collection_id_id
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_template_id_collection_id_id
     ON public.soonmarket_realtime_event USING btree
     (asset_id,template_id,collection_id,id)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_asset_data
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_data
     ON public.soonmarket_realtime_event USING gin
     (data)
-    TABLESPACE pg_default;													
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_global_sequence
+    ON public.soonmarket_realtime_event USING btree
+    (global_sequence)
+    TABLESPACE pg_default;														
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_id_type
+    ON public.soonmarket_realtime_event USING btree
+    (id,type)
+    TABLESPACE pg_default;	
 
 COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for retrieving historic entries';
 
