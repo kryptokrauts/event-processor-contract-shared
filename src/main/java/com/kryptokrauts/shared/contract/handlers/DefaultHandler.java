@@ -45,6 +45,7 @@ public class DefaultHandler extends BaseHandler {
     transformed.setTransactionId(event.getTransaction_id());
     transformed.setType(event.getType());
     transformed.setData(this.objectMapper.writeValueAsString(event.getData()));
+    transformed.setGlobalSequence(event.getGlobal_sequence());
 
     this.emitTransformedMessage(transformed, this.eventLogEmitter);
   }

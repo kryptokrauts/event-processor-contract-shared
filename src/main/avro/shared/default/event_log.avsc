@@ -10,6 +10,10 @@
 		{
 			"name": "block_timestamp",
 			"type": "long"
+		},		
+		{
+			"name": "global_sequence",
+			"type": "long"
 		},
 		{
 			"name": "transaction_id",
