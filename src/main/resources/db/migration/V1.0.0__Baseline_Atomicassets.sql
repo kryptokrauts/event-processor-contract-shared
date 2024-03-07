@@ -146,7 +146,7 @@ COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for
 
 --
 
-CREATE TABLE public.soonmarket_realtime_event_bundles
+CREATE TABLE public.soonmarket_realtime_event_bundle
 (		id bigint not null,		
 		asset_id bigint NULL,
 		template_id bigint NULL,
@@ -154,7 +154,7 @@ CREATE TABLE public.soonmarket_realtime_event_bundles
  )
 TABLESPACE pg_default;
 
-COMMENT ON TABLE public.soonmarket_realtime_event_bundles IS 'Stores realtime events for single assets';
+COMMENT ON TABLE public.soonmarket_realtime_event_bundle IS 'Stores realtime events for single assets';
 
 --
 
@@ -170,7 +170,7 @@ t1.collection_id,
 t1.type,
 t1.data
 FROM soonmarket_realtime_event t1
-LEFT JOIN soonmarket_realtime_event_bundles t2 ON t1.id=t2.id AND t1.asset_id=t2.asset_id;
+LEFT JOIN soonmarket_realtime_event_bundle t2 ON t1.id=t2.id AND t1.asset_id=t2.asset_id;
 
 COMMENT ON VIEW public.soonmarket_realtime_event_asset_v IS 'View to retrieve realtime events for single assets';
 
