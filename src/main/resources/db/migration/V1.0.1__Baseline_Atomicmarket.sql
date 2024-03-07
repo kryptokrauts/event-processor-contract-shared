@@ -484,6 +484,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_log
 		id bigserial PRIMARY KEY,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
+		global_sequence bigint NULL,
     transaction_id text NOT NULL,    
     type text NOT NULL,		
     data jsonb NULL    
