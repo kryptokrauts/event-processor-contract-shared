@@ -43,7 +43,7 @@ collection_owner AS (
 	LEFT JOIN atomicassets_asset t1 ON t1.asset_id=t2.asset_id AND current AND NOT burned
 )				
 SELECT 
-	ROW_NUMBER() OVER (PARTITION BY collection_id ORDER BY t1.num_nfts DESC) AS rank,
+	ROW_NUMBER() OVER (PARTITION BY t1.collection_id ORDER BY COUNT(*) DESC) AS rank,
 	account,
 	t1.collection_id,
 	total-burned AS total,
