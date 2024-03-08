@@ -826,3 +826,34 @@ CREATE TRIGGER soonmarket_processor_sync_state_timeleft_tr
 BEFORE UPDATE ON public.soonmarket_processor_sync_state
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_processor_sync_state_timeleft_f();
+
+---------------------------------------------------------
+-- Function to disable triggers
+---------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.disable_triggers(
+	a boolean,
+	nsp character varying)
+    RETURNS void
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+declare 
+act character varying;
+r record;
+begin
+    if(a is true) then
+        act = 'disable';
+    else
+        act = 'enable';
+    end if;
+
+    for r in select c.relname from pg_namespace n
+        join pg_class c on c.relnamespace = n.oid and c.relhastriggers = true
+        where n.nspname = nsp
+    loop
+        execute format('alter table %I.%I %s trigger all', nsp,r.relname, act); 
+    end loop;
+end;
+$BODY$;
