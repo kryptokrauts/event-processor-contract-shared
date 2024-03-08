@@ -311,6 +311,35 @@ WHEN (NEW.current AND NEW.burned)
 EXECUTE FUNCTION soonmarket_nft_tables_burn_f();
 
 ---------------------------------------------------------
+-- Trigger for updating the asset owner
+---------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION soonmarket_nft_tables_update_owner_f()
+RETURNS TRIGGER AS $$
+BEGIN 	
+-- soonmarket_nft: update owner
+	UPDATE soonmarket_nft
+	SET owner = NEW.owner
+	WHERE asset_id = NEW.asset_id;
+	
+-- soonmarket_nft_card: update owner
+	UPDATE soonmarket_nft_card
+	SET owner = NEW.owner
+	WHERE asset_id = NEW.asset_id;
+		
+	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER soonmarket_nft_tables_update_owner_tr
+AFTER INSERT ON public.atomicassets_asset_owner_log
+FOR EACH ROW 
+WHEN (NEW.current AND NOT NEW.burned)
+EXECUTE FUNCTION soonmarket_nft_tables_update_owner_f();
+
+---------------------------------------------------------
 -- Trigger for mint NFT
 ---------------------------------------------------------
 
