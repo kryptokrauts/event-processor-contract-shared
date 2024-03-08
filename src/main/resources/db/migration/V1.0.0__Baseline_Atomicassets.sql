@@ -168,6 +168,11 @@ CREATE TABLE public.soonmarket_realtime_event_bundle
  )
 TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_bundle_id
+    ON public.soonmarket_realtime_event_bundle USING btree
+    (id)
+    TABLESPACE pg_default;	
+
 COMMENT ON TABLE public.soonmarket_realtime_event_bundle IS 'Stores realtime events for single assets';
 
 --
