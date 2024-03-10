@@ -52,7 +52,7 @@ BEGIN
 -- soonmarket_nft_card table
 	-- bundle case
 	IF _card_bundle THEN
-		EXECUTE 'DELETE FROM soonmarket_nft_card' || _dynamic_where;
+		EXECUTE 'DELETE FROM soonmarket_nft_card WHERE ' || _dynamic_where;
 		
 		-- update num_bundles for all assets in bundle auction / listing
 		IF _card_bundle AND _auction_id is not null THEN 
@@ -208,6 +208,7 @@ DECLARE
 	_min_edition_serial int;
 	_min_edition_asset_id bigint;
 BEGIN
+	RAISE WARNING '[%]: called with _template_id %', 'soonmarket_tables_update_unlisted_card_f', _template_id;	
 -- query for lowest serial which is not auctioned or listed
 	SELECT min(serial), min(asset_id) INTO _min_edition_serial, _min_edition_asset_id
 	FROM soonmarket_asset_base_v 
@@ -220,6 +221,7 @@ BEGIN
 
 -- if there is a min_edition_serial, change serial of unlisted card to lowest available
 	IF _min_edition_serial IS NOT NULL THEN
+		RAISE WARNING '[%]: found new lowest unlisted serial for edition with template_id %: asset_id % and serial %', 'soonmarket_tables_update_unlisted_card_f',_template_id, _min_edition_asset_id, _min_edition_serial;	
 		UPDATE soonmarket_nft_card 
 		SET 
 			serial = _min_edition_serial, 
@@ -230,11 +232,12 @@ BEGIN
 		WHERE edition_size != 1 AND template_id = _template_id AND auction_id IS NULL AND listing_id IS NULL AND NOT bundle;
 -- if none left, set display of unlisted card to false
 	ELSE
+		RAISE WARNING '[%]: no card left, setting card display to false for edition with _template_id %, switching to unlisted card', 'soonmarket_tables_update_unlisted_card_f', _template_id;	
 		UPDATE soonmarket_nft_card SET display = false 
 		WHERE edition_size != 1 AND template_id = _template_id AND auction_id IS NULL AND listing_id IS NULL AND NOT bundle AND display;
 	END IF;
 	
-	RAISE WARNING 'Execution of function % took % ms', 'soonmarket_tables_update_unlisted_card_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+	RAISE WARNING '[%]: execution of function took % ms', 'soonmarket_tables_update_unlisted_card_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
 END;
 $$ LANGUAGE plpgsql;
@@ -254,6 +257,7 @@ DECLARE
 	_min_edition_asset_id bigint;
 	_num_listings int;
 BEGIN
+	RAISE WARNING '[%]: called with _template_id %', 'soonmarket_tables_update_listed_card_f', _template_id;	
 -- query for lowest priced single listing
 		SELECT 
 		min(serial), 
@@ -269,7 +273,8 @@ BEGIN
 		AND asset_id NOT IN (select asset_id FROM soonmarket_edition_auctions_v WHERE template_id = _template_id);
 
 -- if single listing exists
-	IF _min_edition_serial IS NOT NULL THEN		
+	IF _min_edition_serial IS NOT NULL THEN
+		RAISE WARNING '[%]: found single listing for edition with asset_id % and serial %', 'soonmarket_tables_update_listed_card_f', _min_edition_asset_id, _min_edition_serial;	
 		UPDATE soonmarket_nft_card 
 		SET 
 			serial = _min_edition_serial, 
@@ -286,6 +291,7 @@ BEGIN
 		WHERE edition_size != 1 AND template_id = _template_id AND auction_id IS NULL AND NOT bundle;
 -- if no single listing exists anymore switch to unlisted and null the listing info
 	ELSE
+		RAISE WARNING '[%]: no single listing found for _template_id %, switching to unlisted card', 'soonmarket_tables_update_listed_card_f', _template_id;	
 		UPDATE soonmarket_nft_card 
 		SET 
 			_card_quick_action = 'quick_offer',

@@ -413,7 +413,7 @@ DECLARE
 	_template_id bigint;
 BEGIN 	
 -- soonmarket_nft: update auction data for all assets within listing (in case of bundle listing)
-	
+	RAISE WARNING '[%]: execution of trigger started at %', TG_NAME, clock_timestamp();
 	UPDATE soonmarket_nft
 	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size, filter_token) =
 		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size, NEW.token)
