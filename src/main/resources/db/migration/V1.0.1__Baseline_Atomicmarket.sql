@@ -307,6 +307,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
     block_timestamp bigint NOT NULL,
     current boolean NOT NULL,
     auction_id bigint NOT NULL,
+		global_sequence bigint NOT NULL,
     current_bid double precision,
     bid_number integer NOT NULL,
     updated_end_time bigint,
