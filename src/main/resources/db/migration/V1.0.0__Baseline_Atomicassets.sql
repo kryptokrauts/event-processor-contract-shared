@@ -134,9 +134,9 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_template_id
     (template_id)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_template_id_collection_id_id
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_template_id_collection_id_gs
     ON public.soonmarket_realtime_event USING btree
-    (asset_id,template_id,collection_id,id)
+    (asset_id,template_id,collection_id,global_sequence)
     TABLESPACE pg_default;
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_asset_data
