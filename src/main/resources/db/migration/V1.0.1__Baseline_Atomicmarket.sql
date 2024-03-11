@@ -238,11 +238,11 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_state
     auction_id bigint NOT NULL,
     state smallint,
     end_time bigint,
-    winning_bid double precision,
-		buyer TEXT,		
-    maker_market_fee double precision,
-    taker_market_fee double precision,
-    taker_marketplace TEXT,    
+    winning_bid double precision NULL,
+		buyer TEXT NULL,		
+    maker_market_fee double precision NULL,
+    taker_market_fee double precision NULL,
+    taker_marketplace TEXT NULL,    
     PRIMARY KEY (auction_id)
 )
 TABLESPACE pg_default;
@@ -250,13 +250,33 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_state
     ON public.atomicmarket_auction_state USING btree
     (state)
-    TABLESPACE pg_default;	
+    TABLESPACE pg_default;			
 
--- add trigger to fill maker / taker market fees
-CREATE OR REPLACE TRIGGER atomicmarket_auction_state_fill_mtfees_tr
-BEFORE INSERT ON atomicmarket_auction_state
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_auctionid_state
+    ON public.atomicmarket_auction_state USING btree
+    (auction_id,state)
+    TABLESPACE pg_default;
+
+-- trigger to omit setting state to 2 when state was already set to 4 (cancelled without bids)
+-- because an onchain event cancelauct will be sent when the owner returns the asset after an unsuccessful auction
+CREATE OR REPLACE FUNCTION atomicmarket_auction_state_cancel_check_f()
+RETURNS TRIGGER AS $$
+BEGIN
+	-- if auction state is already 4 (ended without bids) we do not set the cancelauct event
+	-- when the owner triggers the asset claim of the unsuccessful auction
+  IF NEW.state = 2 AND OLD.state != 2 THEN
+		NEW.state = OLD.state;
+	END IF;
+	
+	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER atomicmarket_auction_state_cancel_check_tr
+BEFORE UPDATE ON atomicmarket_auction_state
 FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_state_fill_mtfees_f();			
+EXECUTE FUNCTION atomicmarket_auction_state_cancel_check_f();		
 
 COMMENT ON TABLE public.atomicmarket_auction_state IS 'Store auction state change information';
 COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids';
