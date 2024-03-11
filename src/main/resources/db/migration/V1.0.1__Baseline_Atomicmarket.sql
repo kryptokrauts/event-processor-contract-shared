@@ -21,7 +21,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- trigger function set auction bid number and update end time
-CREATE OR REPLACE FUNCTION atomicmarket_auction_bid_f()
+CREATE OR REPLACE FUNCTION atomicmarket_auction_bid_log_f()
 RETURNS TRIGGER AS $$
 DECLARE
     _bid_number int;
@@ -42,6 +42,10 @@ BEGIN
     -- set fees
     NEW.bid_number := _bid_number;
     NEW.updated_end_time := CASE WHEN (GREATEST(_updated_end_time,_end_time)-_now)<=_auction_reset_ms THEN _now+_auction_reset_ms ELSE NULL END;
+		NEW.current := true;
+
+		-- set other bids current value to false
+		UPDATE atomicmarket_auction_bid_log SET current = false WHERE auction_id = NEW.auction_id AND global_sequence != NEW.global_sequence;
 
     RETURN NEW;
 END;
@@ -333,7 +337,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
     updated_end_time bigint,
     bidder TEXT NOT NULL,
     taker_marketplace TEXT,
-    PRIMARY KEY (id)
+    PRIMARY KEY (global_sequence)
 )
 TABLESPACE pg_default;
 
@@ -347,16 +351,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_auction_bid_log_auction_id
     (auction_id)
     TABLESPACE pg_default;
 
--- add trigger to update current flag
-CREATE TRIGGER atomicmarket_event_auction_bid_log_tr
-BEFORE INSERT ON public.atomicmarket_event_auction_bid_log
-FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('auction_id');		
-
 -- add trigger to set bid number and potential bump date
-CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_f_tr
+CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_log_tr
 BEFORE INSERT ON atomicmarket_event_auction_bid_log
 FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_auction_bid_f();	
+EXECUTE FUNCTION atomicmarket_auction_bid_log_f();	
 
 --
 
@@ -502,10 +501,10 @@ EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_event_log
 (
-		id bigserial PRIMARY KEY,
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
-		global_sequence bigint NULL,
+		global_sequence bigint PRIMARY KEY,
     transaction_id text NOT NULL,    
     type text NOT NULL,		
     data jsonb NULL    

@@ -19,10 +19,10 @@ TABLESPACE pg_default;
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
 (
-		id bigserial PRIMARY KEY,
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
-		global_sequence bigint NULL,
+		global_sequence bigint PRIMARY KEY,
     transaction_id text NOT NULL,    
     type text NOT NULL,		
     data jsonb NULL    
@@ -774,7 +774,6 @@ BEGIN
         EXECUTE 'SELECT ($1).' || TG_ARGV[1] || '::text FROM ' || log_table_name INTO p_id_2_value USING NEW;
     END IF;
 
-    -- Update the specified log table setting the current column to false for the given _id
     -- Update the specified log table setting the current column to false for the given _id
     IF TG_ARGV[1] IS NOT NULL THEN
         EXECUTE 'UPDATE ' || log_table_name || ' SET current = false WHERE (' || TG_ARGV[0] || ')::text = $1 AND (' || TG_ARGV[1] || ')::text = $2'
