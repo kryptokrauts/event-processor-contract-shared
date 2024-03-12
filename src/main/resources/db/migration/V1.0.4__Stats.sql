@@ -10,7 +10,7 @@ Select
 	WHERE STATE=3 
 UNION ALL
 SELECT 
-	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price 
+	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t2.winning_bid 
 	FROM atomicmarket_auction_state t2 
 	LEFT JOIN atomicmarket_auction t1  ON t1.auction_id=t2.auction_id
 	WHERE STATE=3 
@@ -67,26 +67,8 @@ CREATE OR REPLACE VIEW soonmarket_global_stats_24h_v as
 	SELECT
 	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
 	COUNT(*) AS total_sales,
-	(SELECT usd FROM soonmarket_exchange_rate_latest_v WHERE token_symbol='XPR') AS xpr_usd
-	FROM
-	(
-		SELECT DISTINCT 
-			price, t2.block_timestamp AS utc_date, token FROM atomicmarket_sale_state t2
-			LEFT JOIN atomicmarket_sale t1  ON t1.sale_id=t2.sale_id
-			WHERE STATE=3 
-		UNION ALL
-		SELECT DISTINCT
-			winning_bid, t2.end_time, token 
-			FROM atomicmarket_auction_state t2 
-			LEFT JOIN atomicmarket_auction t1  ON t1.auction_id=t2.auction_id
-			WHERE STATE=3 
-		UNION ALL
-		SELECT DISTINCT 
-			price,t2.block_timestamp, token 
-			FROM atomicmarket_buyoffer_state t2
-			LEFT JOIN atomicmarket_buyoffer t1 ON t1.buyoffer_id=t2.buyoffer_id
-			WHERE STATE=3 	
-	)vol	
+	(SELECT usd FROM soonmarket_exchange_rate_latest_v WHERE token_symbol='XPR') AS xpr_usd	
+	FROM soonmarket_sale_stats_v vol	
 	LEFT JOIN 
 	soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
 WHERE vol.utc_date BETWEEN 
