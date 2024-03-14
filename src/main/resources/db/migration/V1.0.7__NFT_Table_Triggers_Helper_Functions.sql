@@ -1,4 +1,113 @@
 ---------------------------------------------------------------------------------
+-- Function to insert/updated auctions in soonmarket_nft and soonmarket_nft_card
+-- update num_auctions/listings/bundles for editions
+-- update unlisted cards
+---------------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.soonmarket_nft_tables_auction_insert_f(_auction_id bigint)
+    RETURNS void
+    LANGUAGE 'plpgsql'    
+AS $BODY$
+DECLARE	
+	_edition_size int;
+	_id bigint;
+	_serial int;
+	_template_id bigint;
+	_min_edition_serial int;
+	_min_edition_asset_id bigint;
+	-- auction params
+	_blocknum bigint;
+	_block_timestamp bigint;
+	_auction_end_date bigint; 
+	_auction_token text;
+	_auction_starting_bid DOUBLE PRECISION;
+	_auction_royalty DOUBLE PRECISION;
+	_auction_seller text;
+	_primary_asset_id bigint;
+	_bundle boolean;
+	_bundle_size int;
+BEGIN 	
+
+	RAISE WARNING 'Started Execution of function % for auction_id %', 'soonmarket_nft_tables_auction_insert_f', _auction_id;
+
+	-- exit if auction or auction_assets are not present (due to time gap when persisting auction data in kafka sink)
+	IF 
+		(SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = _auction_id ) = 0 OR
+		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = _auction_id ) = 0
+	THEN
+		RAISE WARNING 'Necessary data to update soonmarket_nft* tables for auction_id % is not present', _auction_id;
+		RETURN;
+	END IF;
+
+	SELECT 
+		blocknum, block_timestamp, end_time, token, price, collection_fee, bundle, bundle_size, seller, primary_asset_id
+	INTO 
+		_blocknum, _block_timestamp, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size, _auction_seller, _primary_asset_id
+	FROM atomicmarket_auction
+	WHERE auction_id = _auction_id;
+
+-- soonmarket_nft: update auction data for all assets within auction (in case of bundle auction)
+	
+	UPDATE soonmarket_nft
+	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size, filter_token) =
+		(_blocknum, _block_timestamp, _auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size, _auction_token)
+	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = _auction_id);
+	RAISE WARNING 'Update soonmarket_nft for auction_id %: %',  _auction_id, (select id from soonmarket_nft where auction_id=_auction_id);
+-- soonmarket_nft_card table
+	
+	-- get edition size
+	SELECT edition_size, template_id, serial 
+	INTO _edition_size, _template_id, _serial 
+	FROM soonmarket_asset_base_v 
+	WHERE asset_id = _primary_asset_id;
+	
+	-- if 1:1 update card
+	IF _edition_size = 1 THEN
+		UPDATE soonmarket_nft_card		
+	 	SET (blocknum, block_timestamp, auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
+			(_blocknum, _block_timestamp, _auction_id, _auction_seller, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size),
+			 _card_quick_action = CASE WHEN _bundle THEN 'no_action' ELSE 'quick_bid' END,
+			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END
+		WHERE asset_id = _primary_asset_id;
+	
+	-- if 1:N (edition)
+	ELSE
+		-- create a new auction/auction bundle card by duplicating the existing 
+		SELECT * INTO _id FROM copy_row_f(_template_id,'soonmarket_nft_card');
+		
+		-- updating card to primary NFT values and auction
+		UPDATE soonmarket_nft_card 
+		SET (blocknum, block_timestamp, auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
+			(_blocknum, _block_timestamp, _auction_id, _auction_seller, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size),
+			 serial = _serial,
+			 asset_id = _primary_asset_id,
+			 _card_quick_action = CASE WHEN _bundle THEN 'no_action' ELSE 'quick_bid' END,
+			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END
+		WHERE id = _id;
+	END IF;	
+	
+	-- update num_bundles for all editions included in bundle (can be multiple template_ids)
+	IF _bundle THEN 
+		UPDATE soonmarket_nft_card SET num_bundles = COALESCE(num_bundles,0)+1 
+		WHERE edition_size !=1 AND template_id in (SELECT template_id from atomicmarket_auction_asset WHERE auction_id = _auction_id);
+	END IF;
+	-- update num_auctions for all NFTs of this edition
+	IF NOT _bundle AND _edition_size != 1 THEN
+		UPDATE soonmarket_nft_card SET num_auctions = COALESCE(num_auctions,0)+1
+		WHERE template_id = _template_id;		
+	END IF;	
+	
+	-- update potential unlisted card state for all templates (if auction was bundle can be multiple)
+	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
+	FROM atomicmarket_auction_asset 
+	WHERE auction_id = _auction_id
+	GROUP BY template_id;
+	
+	RAISE WARNING 'Execution of function % took % ms', 'soonmarket_nft_tables_auction_insert_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+END;
+$BODY$;
+
+---------------------------------------------------------------------------------
 -- Function to clear market info from tables
 -- Clear single auction/listing from soonmarket_nft and soonmarket_nft_card
 -- Remove auction/bundle cards

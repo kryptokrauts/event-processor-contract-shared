@@ -69,14 +69,20 @@ EXECUTE FUNCTION soonmarket_nft_tables_transfer_f();
 CREATE OR REPLACE FUNCTION soonmarket_nft_tables_auction_bid_f()
 RETURNS TRIGGER AS $$
 BEGIN  
+
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
 	-- soonmarket_nft table
 	UPDATE soonmarket_nft SET 
+		blocknum = NEW.blocknum,
+		block_timestamp = NEW.block_timestamp,
 		auction_current_bid = NEW.current_bid,
 		num_bids = NEW.bid_number
 	WHERE auction_id = NEW.auction_id;
 	
 	-- soonmarket_nft_card table
 	UPDATE soonmarket_nft_card SET 
+		blocknum = NEW.blocknum,
+		block_timestamp = NEW.block_timestamp,
 		auction_current_bid = NEW.current_bid,
 		highest_bidder = NEW.bidder,
 		num_bids = NEW.bid_number
@@ -157,83 +163,51 @@ EXECUTE FUNCTION soonmarket_nft_tables_auction_ended_with_bid_f();
 -- Trigger for newly created auction
 ---------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION soonmarket_nft_tables_auction_started_f()
-RETURNS TRIGGER AS $$
-DECLARE	
-	_edition_size int;
-	_id bigint;
-	_serial int;
-	_template_id bigint;
-	_min_edition_serial int;
-	_min_edition_asset_id bigint;
+CREATE OR REPLACE FUNCTION public.soonmarket_nft_tables_auction_started_f()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+AS $BODY$
 BEGIN 	
--- soonmarket_nft: update auction data for all assets within auction (in case of bundle auction)
-	
-	UPDATE soonmarket_nft
-	SET (auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size, filter_token) =
-		(NEW.auction_id, NEW.end_time, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size, NEW.token)
-	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = NEW.auction_id);
-	
--- soonmarket_nft_card table
-	
-	-- get edition size
-	SELECT edition_size, template_id, serial 
-	INTO _edition_size, _template_id, _serial 
-	FROM soonmarket_asset_base_v 
-	WHERE asset_id = NEW.primary_asset_id;
-	
-	-- if 1:1 update card
-	IF _edition_size = 1 THEN
-		UPDATE soonmarket_nft_card		
-	 	SET (auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
-			(NEW.auction_id, NEW.seller, NEW.end_time, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size),
-			 _card_quick_action = CASE WHEN NEW.bundle THEN 'no_action' ELSE 'quick_bid' END,
-			 _card_state = CASE WHEN NEW.bundle THEN 'bundle' ELSE 'single' END
-		WHERE asset_id = NEW.primary_asset_id;
-	
-	-- if 1:N (edition)
-	ELSE
-		-- create a new auction/auction bundle card by duplicating the existing 
-		SELECT * INTO _id FROM copy_row_f(_template_id,'soonmarket_nft_card');
-		
-		-- updating card to primary NFT values and auction
-		UPDATE soonmarket_nft_card 
-		SET (auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
-			(NEW.auction_id, NEW.seller, NEW.end_time, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size),
-			 serial = _serial,
-			 asset_id = NEW.primary_asset_id,
-			 _card_quick_action = CASE WHEN NEW.bundle THEN 'no_action' ELSE 'quick_bid' END,
-			 _card_state = CASE WHEN NEW.bundle THEN 'bundle' ELSE 'single' END
-		WHERE id = _id;
-	END IF;	
-	
-	-- update num_bundles for all editions included in bundle (can be multiple template_ids)
-	IF NEW.bundle THEN 
-		UPDATE soonmarket_nft_card SET num_bundles = COALESCE(num_bundles,0)+1 
-		WHERE edition_size !=1 AND template_id in (SELECT template_id from atomicmarket_auction_asset WHERE auction_id = NEW.auction_id);
-	END IF;
-	-- update num_auctions for all NFTs of this edition
-	IF NOT NEW.bundle AND _edition_size != 1 THEN
-		UPDATE soonmarket_nft_card SET num_auctions = COALESCE(num_auctions,0)+1
-		WHERE template_id = _template_id;		
-	END IF;	
-	
-	-- update potential unlisted card state for all templates (if auction was bundle can be multiple)
-	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
-	FROM atomicmarket_auction_asset 
-	WHERE auction_id = NEW.auction_id
-	GROUP BY template_id;
+
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
+
+	PERFORM soonmarket_nft_tables_auction_insert_f(NEW.auction_id);
 	
 	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
 	RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
 
 CREATE TRIGGER soonmarket_nft_tables_auction_started_tr
 AFTER INSERT ON public.atomicmarket_auction
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_nft_tables_auction_started_f();
+
+-- Additional trigger for atomicmarket_auction_assets, since we need information
+-- from both tables: auction and auction_assets and the insert order is not guaranteed
+
+CREATE OR REPLACE FUNCTION public.soonmarket_nft_tables_assets_auction_started_f()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+AS $BODY$
+BEGIN 	
+
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
+
+	PERFORM soonmarket_nft_tables_auction_insert_f(NEW.auction_id);
+	
+	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+	RETURN NEW;
+END;
+$BODY$;
+
+CREATE OR REPLACE TRIGGER soonmarket_nft_tables_assets_auction_started_tr
+    AFTER INSERT
+    ON public.atomicmarket_auction_asset
+    FOR EACH ROW
+EXECUTE FUNCTION public.soonmarket_nft_tables_assets_auction_started_f();
 
 ---------------------------------------------------------
 -- Trigger for claim NFT by buyer
