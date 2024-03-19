@@ -211,3 +211,31 @@ CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_latest_v
                     max(exchange_rate_daily_1._timestamp) AS max
                    FROM soonmarket_exchange_rate exchange_rate_daily_1
                   GROUP BY exchange_rate_daily_1.asset_id))) t ON era.id = t.asset_id;
+
+--
+
+
+CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_gaps_v
+ AS
+ WITH timespan AS (
+         WITH mindates AS (
+                 SELECT min(utc_date::text) AS _min,
+                    asset_id
+                   FROM soonmarket_exchange_rate t1
+                  GROUP BY asset_id
+                  ORDER BY asset_id
+                )
+         SELECT md.asset_id,
+            s._date
+           FROM mindates md,
+            LATERAL generate_series(md._min::timestamp without time zone, (now()::date - 1)::timestamp without time zone, '24:00:00'::interval) s(_date)
+        )
+ SELECT asset_id,
+    _date AS utc_date,
+    EXTRACT(epoch FROM _date) * 1000::numeric AS _timestamp
+   FROM timespan
+  WHERE NOT ((_date, asset_id) IN ( SELECT sm.utc_date::timestamp without time zone AS utc_date,
+            ts.asset_id
+           FROM soonmarket_exchange_rate sm
+             JOIN timespan ts ON sm.utc_date::timestamp without time zone = ts._date AND sm.asset_id = ts.asset_id))
+  ORDER BY asset_id, _date;
