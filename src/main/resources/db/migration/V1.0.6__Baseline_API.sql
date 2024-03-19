@@ -56,6 +56,7 @@ SELECT
 	t5.collection_id,
 	t5.name AS collection_name,
 	t5.image as collection_image,
+	t5.creator,
 	t1.seller,
 	t1.buyer,
 	t1.bundle,
