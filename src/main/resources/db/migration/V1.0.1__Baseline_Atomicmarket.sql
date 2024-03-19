@@ -45,7 +45,7 @@ BEGIN
 		NEW.current := true;
 
 		-- set other bids current value to false
-		UPDATE atomicmarket_auction_bid_log SET current = false WHERE auction_id = NEW.auction_id AND global_sequence != NEW.global_sequence;
+		UPDATE atomicmarket_event_auction_bid_log SET current = false WHERE auction_id = NEW.auction_id AND global_sequence != NEW.global_sequence;
 
     RETURN NEW;
 END;
