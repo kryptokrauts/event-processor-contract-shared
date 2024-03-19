@@ -415,20 +415,20 @@ VALUES
     (0, 0, '552231531255', 'initial', NULL),
     (0, 0, '123212133434', 'initial', NULL),
     (0, 0, '412414423215', 'initial', NULL),
-    (0, 0, '122221125231', 'initial', NULL);
-		(0, 0, '431411254311', 'initial', NULL);
-		(0, 0, '212522431313', 'initial', NULL);
-		(0, 0, '211231221244', 'initial', NULL);
-		(0, 0, '455242113311', 'initial', NULL);
-		(0, 0, '142221144241', 'initial', NULL);
-		(0, 0, '224441515434', 'initial', NULL);
-		(0, 0, '134531513513', 'initial', NULL);
-		(0, 0, 'pawrangers', 'initial', NULL);
-		(0, 0, '1fkidfg5evf1', 'initial', NULL);
-		(0, 0, '322122414314', 'initial', NULL);
-		(0, 0, '423151421243', 'initial', NULL);
-		(0, 0, '152542134352', 'initial', NULL);
-		(0, 0, 'festivecampa', 'initial', NULL);
+    (0, 0, '122221125231', 'initial', NULL),
+		(0, 0, '431411254311', 'initial', NULL),
+		(0, 0, '212522431313', 'initial', NULL),
+		(0, 0, '211231221244', 'initial', NULL),
+		(0, 0, '455242113311', 'initial', NULL),
+		(0, 0, '142221144241', 'initial', NULL),
+		(0, 0, '224441515434', 'initial', NULL),
+		(0, 0, '134531513513', 'initial', NULL),
+		(0, 0, 'pawrangers', 'initial', NULL),
+		(0, 0, '1fkidfg5evf1', 'initial', NULL),
+		(0, 0, '322122414314', 'initial', NULL),
+		(0, 0, '423151421243', 'initial', NULL),
+		(0, 0, '152542134352', 'initial', NULL),
+		(0, 0, 'festivecampa', 'initial', NULL),
 		(0, 0, '415114522454', 'initial', NULL);
 
 ----------------------------------
@@ -489,9 +489,9 @@ VALUES
     (0, 0, '353512453544', 'initial', NULL, 'initial', NULL),
     (0, 0, '115421325544', 'initial', NULL, 'initial', NULL),
     (0, 0, '255541411532', 'initial', NULL, 'initial', NULL),
-    (0, 0, '553215434233', 'initial', NULL, 'initial', NULL);
-		(0, 0, '232435234133', 'initial', NULL, 'initial', NULL);
-		(0, 0, '212122333341', 'initial', NULL, 'initial', NULL);
+    (0, 0, '553215434233', 'initial', NULL, 'initial', NULL),
+		(0, 0, '232435234133', 'initial', NULL, 'initial', NULL),
+		(0, 0, '212122333341', 'initial', NULL, 'initial', NULL),
 		(0, 0, '312211233252', 'initial', NULL, 'initial', NULL);
 
 
