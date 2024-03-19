@@ -71,7 +71,7 @@ CREATE OR REPLACE VIEW soonmarket_global_stats_24h_v as
 	FROM soonmarket_sale_stats_v vol	
 	LEFT JOIN 
 	soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
-WHERE vol.utc_date BETWEEN 
+WHERE vol.block_timestamp BETWEEN 
 floor(extract(epoch FROM (CURRENT_DATE - '1 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
 AND
 floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000);
