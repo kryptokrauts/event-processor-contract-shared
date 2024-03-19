@@ -28,7 +28,8 @@ SELECT
 	t1.price,
 	t1.memo,
 	t1.collection_fee AS royalty,
-	0.02::DOUBLE PRECISION AS market_fee
+	0.02::DOUBLE PRECISION AS market_fee,
+	t5.shielded
 FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
@@ -62,7 +63,8 @@ SELECT
 	t1.token,
 	t1.price,
 	t1.memo,
-	t1.collection_fee AS royalty
+	t1.collection_fee AS royalty,
+	t5.shielded
 FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
 LEFT JOIN soonmarket_asset_base_v t4 ON t1.primary_asset_id=t4.asset_id
 LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
@@ -673,3 +675,84 @@ SELECT
 FROM soonmarket_profile t1
 LEFT JOIN LATERAL (select COUNT(*) AS num_bought, MAX(block_timestamp) AS last_bought from soonmarket_sale_stats_v where t1.account=buyer GROUP BY buyer LIMIT 1)t2 ON TRUE
 LEFT JOIN LATERAL (select COUNT(*) AS num_sold, MAX(block_timestamp) AS last_sold from soonmarket_sale_stats_v where t1.account=seller GROUP BY seller LIMIT 1)t3 ON TRUE;
+
+----------------------------------
+-- My Trading History
+----------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_my_trading_history_v AS
+WITH all_sales AS(
+ 	SELECT
+ 	 'listing' AS sale_type, 
+		t2.buyer,
+		t1.collection_id,
+		t1.primary_asset_id AS asset_id,    
+		t1.seller,
+		t2.block_timestamp AS sale_date,
+		t1.token,
+		t1.price,
+		t2.maker_market_fee,
+		t2.taker_market_fee,
+		t1.collection_fee AS royalty,
+		t1.bundle,
+		t1.bundle_size
+  FROM (atomicmarket_sale_state t2
+  LEFT JOIN atomicmarket_sale t1 ON ((t1.sale_id = t2.sale_id)))
+  WHERE (t2.state = 3)
+UNION ALL
+ 	SELECT 
+		'auction', 
+		t2.buyer,
+		t1.collection_id,
+		t1.primary_asset_id,
+		t1.seller,
+		t2.block_timestamp,
+		t1.token,
+		t1.price,
+		t2.maker_market_fee,
+		t2.taker_market_fee,
+		t1.collection_fee,
+		t1.bundle,
+		t1.bundle_size
+	FROM (atomicmarket_auction_state t2
+	LEFT JOIN atomicmarket_auction t1 ON ((t1.auction_id = t2.auction_id)))
+  WHERE (t2.state = 3)
+UNION ALL
+ 	SELECT 
+		'offer',
+		t1.buyer,
+		t1.collection_id,
+		t1.primary_asset_id,
+		t1.seller,
+		t2.block_timestamp,
+		t1.token,
+		t1.price,
+		t2.maker_market_fee,
+		t2.taker_market_fee,
+		t1.collection_fee,
+		t1.bundle,
+		t1.bundle_size
+  FROM (atomicmarket_buyoffer_state t2
+  LEFT JOIN atomicmarket_buyoffer t1 ON ((t1.buyoffer_id = t2.buyoffer_id)))
+  WHERE (t2.state = 3))
+SELECT 
+	t1.*,
+	t1.price*t3.usd AS filter_price_usd,
+	t2.collection_name,
+	t2.collection_image,
+	t2.shielded,
+	t2.asset_name,
+	t2.asset_media,
+	t2.asset_media_type,
+	t2.asset_media_preview,
+	t2.serial,
+	t2.edition_size,
+	t2.template_id,
+	'' AS owner 
+FROM all_sales t1
+LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id = t2.asset_id
+LEFT JOIN soonmarket_exchange_rate_historic_v t3 
+	ON t1.token = t3.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t1.sale_date / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t3.utc_date;
+
+COMMENT ON VIEW public.soonmarket_my_trading_history_v IS 'View for my trading history';

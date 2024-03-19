@@ -544,10 +544,13 @@ DECLARE
     t_schema_name text;
     dynamic_sql text;
 BEGIN
+		RAISE WARNING 'Started Execution of trigger % for blocknum %', TG_NAME, NEW.blocknum;
+		
     t_schema_name := 'public';
 
     -- if clean_database is true
     IF NEW.clean_database THEN
+				RAISE WARNING 'clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
         -- build dynamic SQL to delete entries from matching tables
         FOR t_table_name IN 
             SELECT table_name
