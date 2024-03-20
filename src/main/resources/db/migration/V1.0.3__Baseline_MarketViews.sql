@@ -253,7 +253,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_template_sales_v IS 'Last price any asset 
 
 --
 
-CREATE VIEW soonmarket_last_sold_for_asset_v as
+CREATE OR REPLACE VIEW soonmarket_last_sold_for_asset_v as
 WITH all_prices AS (
 	SELECT 
 	  asset_id,
@@ -275,7 +275,14 @@ WITH all_prices AS (
 		SELECT * FROM soonmarket_lsf_latest_asset_sales_v
 	)aggregated
 )
-SELECT * FROM all_prices WHERE rn=1;
+SELECT 
+t1.*,
+t1.price * t2.usd AS price_usd
+FROM all_prices t1 
+LEFT JOIN soonmarket_exchange_rate_historic_v t2 
+	ON t1.token=t2.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t1.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t2.utc_date
+WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_asset_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
 
@@ -303,7 +310,14 @@ WITH all_prices AS (
 		SELECT * FROM soonmarket_lsf_latest_template_sales_v
 	)aggregated
 )
-SELECT * FROM all_prices WHERE rn=1;
+SELECT 
+t1.*,
+t1.price * t2.usd AS price_usd
+FROM all_prices t1
+LEFT JOIN soonmarket_exchange_rate_historic_v t2 
+	ON t1.token=t2.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t1.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t2.utc_date
+WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_template_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
 
