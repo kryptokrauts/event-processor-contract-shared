@@ -71,10 +71,7 @@ CREATE OR REPLACE VIEW soonmarket_global_stats_24h_v as
 	FROM soonmarket_sale_stats_v vol	
 	LEFT JOIN 
 	soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
-WHERE vol.block_timestamp BETWEEN 
-floor(extract(epoch FROM (CURRENT_DATE - '1 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-AND
-floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000);
+WHERE vol.block_timestamp >= floor(extract(epoch FROM (NOW() - '1 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000);
 
 ----------------------------------
 -- Global Collection Stats
@@ -105,12 +102,11 @@ SELECT
 	COUNT(*) AS total_sales,
 	vol.collection_id
 	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
+LEFT JOIN soonmarket_exchange_rate_historic_v her ON
+her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
+AND her.token_symbol=vol.token
 WHERE 
-	vol.block_timestamp 
-		BETWEEN floor(extract(epoch FROM (CURRENT_DATE - '7 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-	AND
-		floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000)
+	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '7 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
 GROUP BY vol.collection_id
 )
 SELECT 
@@ -141,12 +137,11 @@ SELECT
 	COUNT(*) AS total_sales,
 	vol.collection_id
 	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
+LEFT JOIN soonmarket_exchange_rate_historic_v her ON
+her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
+AND her.token_symbol=vol.token
 WHERE 
-	vol.block_timestamp 
-		BETWEEN floor(extract(epoch FROM (CURRENT_DATE - '30 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-	AND
-		floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000)
+	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '30 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
 GROUP BY vol.collection_id
 )
 SELECT 
@@ -177,12 +172,11 @@ SELECT
 	COUNT(*) AS total_sales,
 	vol.collection_id
 	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_latest_v her ON her.token_symbol=vol.token
+LEFT JOIN soonmarket_exchange_rate_historic_v her ON
+her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
+AND her.token_symbol=vol.token
 WHERE 
-	vol.block_timestamp 
-		BETWEEN floor(extract(epoch FROM (CURRENT_DATE - '180 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-	AND
-		floor(extract(epoch FROM CURRENT_DATE AT TIME ZONE 'UTC')*1000)
+	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '180 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
 GROUP BY vol.collection_id
 )
 SELECT 
