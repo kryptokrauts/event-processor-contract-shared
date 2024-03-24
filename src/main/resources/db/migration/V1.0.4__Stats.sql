@@ -81,13 +81,14 @@ CREATE MATERIALIZED VIEW soonmarket_collection_stats_mv as
 SELECT
 	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
 	COUNT(*) AS total_sales,
-	vol.collection_id,
-	(Select count(distinct asset_id) from atomicassets_asset where collection_id=vol.collection_id) as num_nfts
-FROM soonmarket_sale_stats_v vol
+	t1.collection_id,
+	(Select count(distinct asset_id) from atomicassets_asset where collection_id=t1.collection_id) as num_nfts
+FROM atomicassets_collection t1
+left join soonmarket_sale_stats_v vol on t1.collection_id = vol.collection_id
 LEFT JOIN soonmarket_exchange_rate_historic_v her ON
 her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
 AND her.token_symbol=vol.token
-GROUP BY vol.collection_id;
+GROUP BY t1.collection_id;
 
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_mv ON soonmarket_collection_stats_mv (collection_id);
 

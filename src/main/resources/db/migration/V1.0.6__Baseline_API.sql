@@ -294,6 +294,11 @@ where not blacklisted
 SELECT 
 	t1.*,
 	t10.asset_id is not null as has_offers,
+	t9.price as last_sold_for_price,
+  t9.token as last_sold_for_token,
+	t9.price * t11.usd as last_sold_for_price_usd,
+	t9.price * t9.royalty * t11.usd as last_sold_for_royalty_usd,
+	t9.price * (t9.maker_market_fee+t9.taker_market_fee) * t11.usd as last_sold_for_market_fee_usd,
 	t7.auction_id,
 	t7.auction_end AS auction_end_date,
 	t7.token as auction_token,
@@ -307,23 +312,21 @@ SELECT
 	t8.listing_date,
 	t8.listing_token,
 	t8.listing_price,
-	t8.listing_royalty,
-	t9.price, 
-	t9.token, 
-	COALESCE(t7.token,t8.listing_token) AS filter_token
+	t8.listing_royalty
 INTO soonmarket_nft
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
 left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id  
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
+LEFT JOIN soonmarket_exchange_rate_historic_v t11
+	ON t9.token=t11.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t9.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t11.utc_date
 LEFT JOIN LATERAL (select asset_id from soonmarket_buyoffer_open_v where t1.asset_id=asset_id limit 1)t10 ON true;
 
 ALTER TABLE soonmarket_nft ADD COLUMN id bigserial;
 ALTER TABLE soonmarket_nft ADD CONSTRAINT pk_soonmarket_nft PRIMARY KEY (id);
 
 COMMENT ON TABLE soonmarket_nft IS 'Base NFT table';
-COMMENT ON COLUMN soonmarket_nft.price IS 'Last sold for price';
-COMMENT ON COLUMN soonmarket_nft.token IS 'Last sold for token';
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burned_creator
     ON public.soonmarket_nft USING btree
@@ -416,7 +419,8 @@ round_to_decimals_f(CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_price 
 	WHEN t1.auction_id IS NOT null THEN COALESCE(t1.auction_current_bid,t1.auction_starting_bid)
 	END * e.usd)
-	AS filter_price_usd
+	AS filter_price_usd,
+COALESCE(t1.auction_token,t1.listing_token) AS filter_token
 FROM soonmarket_nft t1
 LEFT JOIN soonmarket_exchange_rate_latest_v e ON e.token_symbol = 
 CASE 

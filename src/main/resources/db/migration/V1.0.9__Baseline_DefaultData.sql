@@ -430,6 +430,7 @@ VALUES
 		(0, 0, '152542134352', 'initial', NULL),
 		(0, 0, 'festivecampa', 'initial', NULL),
 		(0, 0, '415114522454', 'initial', NULL);
+		(0,0,'111224424432','initial',NULL);
 
 ----------------------------------
 -- shielding

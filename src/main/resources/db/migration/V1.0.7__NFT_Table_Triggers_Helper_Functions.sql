@@ -31,9 +31,11 @@ BEGIN
 	RAISE WARNING 'Started Execution of function % for auction_id %', 'soonmarket_nft_tables_auction_insert_f', _auction_id;
 
 	-- exit if auction or auction_assets are not present (due to time gap when persisting auction data in kafka sink)
+	-- in case of bundle we need to make sure all auction_asset entries are present
 	IF 
-		(SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = _auction_id ) = 0 OR
-		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = _auction_id ) = 0
+		NOT ((SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = _auction_id ) != 0 AND
+		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = _auction_id ) != 0 AND
+		((SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = _auction_id ) = (SELECT bundle_size FROM atomicmarket_auction WHERE auction_id = _auction_id)))
 	THEN
 		RAISE WARNING 'Necessary data to update soonmarket_nft* tables for auction_id % is not present', _auction_id;
 		RETURN;
@@ -49,10 +51,10 @@ BEGIN
 -- soonmarket_nft: update auction data for all assets within auction (in case of bundle auction)
 	
 	UPDATE soonmarket_nft
-	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size, filter_token) =
-		(_blocknum, _block_timestamp, _auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size, _auction_token)
+	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
+		(_blocknum, _block_timestamp, _auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = _auction_id);
-	RAISE WARNING 'Update soonmarket_nft for auction_id %: %',  _auction_id, (select id from soonmarket_nft where auction_id=_auction_id);
+	RAISE WARNING 'Update soonmarket_nft for auction_id %: %',  _auction_id, (select id from soonmarket_nft where auction_id=_auction_id limit 1);
 -- soonmarket_nft_card table
 	
 	-- get edition size
@@ -61,18 +63,19 @@ BEGIN
 	FROM soonmarket_asset_base_v 
 	WHERE asset_id = _primary_asset_id;
 	
-	-- if 1:1 update card
-	IF _edition_size = 1 THEN
+	-- if 1:1 singlea auction update card
+	IF _edition_size = 1 AND NOT _bundle THEN
 		UPDATE soonmarket_nft_card		
 	 	SET (blocknum, block_timestamp, auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
 			(_blocknum, _block_timestamp, _auction_id, _auction_seller, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size),
-			 _card_quick_action = CASE WHEN _bundle THEN 'no_action' ELSE 'quick_bid' END,
-			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END
+			 _card_quick_action = 'quick_bid',
+			 _card_state = 'single'
 		WHERE asset_id = _primary_asset_id;
 	
 	-- if 1:N (edition)
 	ELSE
 		-- create a new auction/auction bundle card by duplicating the existing 
+		RAISE WARNING 'Creating new auction card from template_id %', _template_id;
 		SELECT * INTO _id FROM copy_row_f(_template_id,'soonmarket_nft_card');
 		
 		-- updating card to primary NFT values and auction
@@ -82,7 +85,8 @@ BEGIN
 			 serial = _serial,
 			 asset_id = _primary_asset_id,
 			 _card_quick_action = CASE WHEN _bundle THEN 'no_action' ELSE 'quick_bid' END,
-			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END
+			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END,
+			 display = true
 		WHERE id = _id;
 	END IF;	
 	
@@ -125,6 +129,8 @@ DECLARE
 	_dynamic_where text;
 BEGIN  
 
+	RAISE WARNING 'Started Execution of function % with params auction_id % listing_id %', 'soonmarket_nft_tables_clear_f', _auction_id, _listing_id;
+
 -- construct where clause depending on parameters
 	CASE
 		WHEN _auction_id IS NOT NULL THEN
@@ -154,12 +160,11 @@ BEGIN
 		listing_royalty = null,
 		bundle = false,
 		bundle_size = null,
-		num_bids = null,
-		filter_token = null
+		num_bids = null
 		WHERE ' || _dynamic_where;
 	
 -- soonmarket_nft_card table
-	-- bundle case
+	-- bundle case - delete bundle auction/listing
 	IF _card_bundle THEN
 		EXECUTE 'DELETE FROM soonmarket_nft_card WHERE ' || _dynamic_where;
 		
@@ -177,7 +182,7 @@ BEGIN
 	END IF;
 	-- edition case
 	IF _card_edition_size != 1 THEN
-		-- delete auction/bundle auction/bundle listing card because there is always an single listed/unlisted card
+		-- delete auction card because there is always an single listed/unlisted card
 		IF _auction_id IS NOT null THEN
 			DELETE FROM soonmarket_nft_card WHERE auction_id = _auction_id;	
 		END IF;
@@ -220,7 +225,7 @@ BEGIN
 		WHERE ' || _dynamic_where;
 	END IF;	
 
-	RAISE WARNING 'Execution of function % took % ms', 'soonmarket_nft_tables_update_last_sold_for_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+	RAISE WARNING 'Execution of function % took % ms', 'soonmarket_nft_tables_clear_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
 END;
 $$;
@@ -234,12 +239,8 @@ RETURNS void AS $$
 DECLARE
 	_dynamic_nft_card_query text;
 BEGIN  
-	-- soonmarket_nft: update lastSoldFor info for the given asset
-	UPDATE soonmarket_nft
-	 SET (price, token) =
-		(SELECT t1.price, t1.token FROM soonmarket_last_sold_for_asset_v t1 WHERE t1.asset_id = _card_asset_id)
-	WHERE asset_id = _card_asset_id;
-		
+	RAISE WARNING 'Started Execution of function % with params card_asset_id % _card_template_id % _card_edition_size %', 'soonmarket_nft_tables_update_last_sold_for_f', _card_asset_id, _card_template_id, _card_edition_size;
+	
 	_dynamic_nft_card_query = 'UPDATE %I
 	 SET (last_sold_for_price, last_sold_for_token, last_sold_for_price_usd, last_sold_for_royalty_usd, last_sold_for_market_fee_usd) =
 		(SELECT 
@@ -248,6 +249,9 @@ BEGIN
 		 LEFT JOIN soonmarket_exchange_rate_latest_v t2 ON t1.token = t2.token_symbol
 		 WHERE t1.%I = %L)
 	WHERE %I = %L';	
+
+	-- soonmarket_nft: update lastSoldFor info for the given asset
+	EXECUTE format(_dynamic_nft_card_query, 'soonmarket_nft', 'soonmarket_last_sold_for_asset_v', 'asset_id', _card_asset_id, 'asset_id', _card_asset_id);
 	
 	-- soonmarket_nft_card table: update either asset or template
 	IF _card_edition_size != 1 THEN
@@ -378,7 +382,7 @@ BEGIN
 		edition_size != 1
 		AND template_id = _template_id 
 		AND NOT burned
-		AND asset_id = (select asset_id FROM soonmarket_listing_valid_v WHERE template_id = _template_id AND NOT bundle ORDER BY listing_price_usd asc LIMIT 1)
+		AND asset_id = (select asset_id FROM soonmarket_listing_valid_v WHERE template_id = _template_id AND NOT bundle ORDER BY listing_price_usd, asset_id asc LIMIT 1)
 		AND asset_id NOT IN (select asset_id FROM soonmarket_edition_auctions_v WHERE template_id = _template_id);
 
 -- if single listing exists

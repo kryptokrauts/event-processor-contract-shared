@@ -115,6 +115,8 @@ DECLARE
 	_card_template_id bigint;
 	_card_edition_size bigint;
 BEGIN  
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
+	
 	SELECT * INTO _card_asset_id, _card_template_id, _card_edition_size FROM soonmarket_nft_tables_clear_f(NEW.auction_id, null);
 	-- update unlisted card state
 	EXECUTE soonmarket_tables_update_unlisted_card_f(_card_template_id);
@@ -142,8 +144,15 @@ DECLARE
 	_card_template_id bigint;
 	_card_edition_size bigint;
 BEGIN  
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
+
 	SELECT * INTO _card_asset_id, _card_template_id, _card_edition_size FROM soonmarket_nft_tables_clear_f(NEW.auction_id, null);
-	EXECUTE soonmarket_nft_tables_update_last_sold_for_f(_card_asset_id, _card_template_id, _card_edition_size);
+
+	-- only update if not bundle auction
+	IF (SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = NEW.auction_id AND NOT bundle) != 0 THEN
+		RAISE WARNING 'Updating lastSoldFor after successful auction with_id %', NEW.auction_id;
+		EXECUTE soonmarket_nft_tables_update_last_sold_for_f(_card_asset_id, _card_template_id, _card_edition_size);
+	END IF;
 	-- update unlisted card state
 	EXECUTE soonmarket_tables_update_unlisted_card_f(_card_template_id);
 
@@ -249,7 +258,6 @@ BEGIN
 	SET burned = true, burned_by = NEW.owner, burned_date = NEW.block_timestamp
 	WHERE asset_id = NEW.asset_id;
 	
--- soonmarket_nft_card: table update shielded flag for all NFTs
 	SELECT edition_size, template_id 
 	INTO _edition_size, _template_id 
 	FROM soonmarket_asset_base_v WHERE asset_id = NEW.asset_id;
@@ -264,7 +272,7 @@ BEGIN
 	ELSE
 		-- check if all assets of edition are burned now, if yes delete card
 		IF (SELECT COUNT(*) FROM soonmarket_asset_base_v WHERE template_id = _template_id AND NOT burned) = 0 THEN
-			DELETE FROM soonmarket_nft_card WHERE asset_id = NEW.asset_id and edition_size = 1;
+			DELETE FROM soonmarket_nft_card WHERE asset_id = NEW.asset_id;
 		END IF;
 		-- check if asset was listed: update potential floor listing since listing is now invalid
 		EXECUTE soonmarket_tables_update_listed_card_f(_template_id);
@@ -389,8 +397,8 @@ BEGIN
 -- soonmarket_nft: update auction data for all assets within listing (in case of bundle listing)
 	RAISE WARNING '[%]: execution of trigger started at %', TG_NAME, clock_timestamp();
 	UPDATE soonmarket_nft
-	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size, filter_token) =
-		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size, NEW.token)
+	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
+		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_sale_asset where sale_id = NEW.sale_id);
 	
 -- soonmarket_nft_card table
@@ -429,7 +437,8 @@ BEGIN
 			 serial = _serial,
 			 asset_id = NEW.primary_asset_id,
 			 _card_quick_action ='no_action',
-			 _card_state = 'bundle'
+			 _card_state = 'bundle',
+			 display = true
 		WHERE id = _id;
 		
 		-- update num_bundles for all editions included in bundle (can be multiple template_ids)	
