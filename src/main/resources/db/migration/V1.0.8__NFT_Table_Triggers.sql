@@ -447,7 +447,7 @@ BEGIN
 	WHERE asset_id = _primary_asset_id;
 	
 	-- if single listing, update card
-	IF _bundle IS NOT true THEN
+	IF _bundle IS false THEN
 		-- if 1:1 update listing info
 		IF _edition_size = 1 THEN
 			UPDATE soonmarket_nft_card		
@@ -457,7 +457,7 @@ BEGIN
 				 _card_state = 'single' 
 			WHERE asset_id = _primary_asset_id;
 		
-		-- if multiedition check, update floor price and num_listings
+		-- if edition check, update floor price and num_listings
 		ELSE			
 			EXECUTE soonmarket_tables_update_listed_card_f(_template_id);
 		END IF;

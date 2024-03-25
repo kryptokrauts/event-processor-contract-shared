@@ -129,7 +129,7 @@ DECLARE
 	_dynamic_where text;
 BEGIN  
 
-	RAISE WARNING 'Started Execution of function % with params auction_id % listing_id %', 'soonmarket_nft_tables_clear_f', _auction_id, _listing_id;
+	RAISE WARNING '[%]: started execution of function with params auction_id % listing_id %', 'soonmarket_nft_tables_clear_f', _auction_id, _listing_id;
 
 -- construct where clause depending on parameters
 	CASE
@@ -141,8 +141,10 @@ BEGIN
 	
 	EXECUTE format('
 	SELECT bundle, asset_id, template_id, edition_size    
-	FROM soonmarket_nft_card
+	FROM soonmarket_nft
 	WHERE ' || _dynamic_where) INTO _card_bundle, _card_asset_id, _card_template_id, _card_edition_size;
+
+	RAISE WARNING '[%]: resolved params from card: asset_id: %, template_id: %, editionSize: %', 'soonmarket_nft_tables_clear_f', _card_asset_id, _card_template_id, _card_edition_size;
 	
 -- soonmarket_nft: clear auction and listing reference
 	EXECUTE '
@@ -322,7 +324,12 @@ DECLARE
 	_min_edition_serial int;
 	_min_edition_asset_id bigint;
 BEGIN
+	IF _template_id IS NULL THEN
+		RETURN;
+	END IF;
+
 	RAISE WARNING '[%]: called with _template_id %', 'soonmarket_tables_update_unlisted_card_f', _template_id;	
+
 -- query for lowest serial which is not auctioned or listed
 	SELECT min(serial), min(asset_id) INTO _min_edition_serial, _min_edition_asset_id
 	FROM soonmarket_asset_base_v 
