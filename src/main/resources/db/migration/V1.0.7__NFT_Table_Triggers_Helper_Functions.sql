@@ -216,6 +216,7 @@ BEGIN
 		listing_price = null,
 		listing_date = null,
 		listing_royalty = null,		
+		listing_seller = null,
 		bundle = false,
 		bundle_size = null,
 		bundle_index = null,
@@ -396,9 +397,9 @@ BEGIN
 			_card_quick_action = 'quick_buy',
 			num_listings = CASE WHEN _num_listings > 0 THEN _num_listings ELSE NULL END,
 			-- set new floor
-			(listing_id, listing_price, listing_token, listing_royalty, listing_date, listing_seller) =
+			(blocknum, block_timestamp, listing_id, listing_price, listing_token, listing_royalty, listing_date, listing_seller) =
 			(SELECT 
-			 	listing_id, listing_price, listing_token, listing_royalty, listing_date, seller
+			  blocknum, block_timestamp, listing_id, listing_price, listing_token, listing_royalty, listing_date, seller
 			 FROM soonmarket_listing_valid_v 
 			 WHERE asset_id = _min_edition_asset_id AND NOT bundle)			
 		WHERE edition_size != 1 AND template_id = _template_id AND auction_id IS NULL AND NOT bundle;

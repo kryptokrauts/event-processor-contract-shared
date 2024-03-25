@@ -225,6 +225,8 @@ EXECUTE FUNCTION public.soonmarket_nft_tables_assets_auction_started_f();
 CREATE OR REPLACE FUNCTION soonmarket_nft_tables_auction_claim_by_buyer_f()
 RETURNS TRIGGER AS $$
 BEGIN  
+
+	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
 	-- update potential unlisted card state for all templates (if auction was bundle can be multiple)
 	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
 	FROM atomicmarket_auction_asset 
@@ -253,6 +255,8 @@ DECLARE
 	_edition_size int;
 	_template_id bigint;
 BEGIN 	
+
+	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_d;
 -- soonmarket_nft: update burned flag	
 	UPDATE soonmarket_nft
 	SET burned = true, burned_by = NEW.owner, burned_date = NEW.block_timestamp
@@ -299,6 +303,9 @@ EXECUTE FUNCTION soonmarket_nft_tables_burn_f();
 CREATE OR REPLACE FUNCTION soonmarket_nft_tables_update_owner_f()
 RETURNS TRIGGER AS $$
 BEGIN 	
+
+	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_d;
+
 -- soonmarket_nft: update owner
 	UPDATE soonmarket_nft
 	SET owner = NEW.owner
@@ -330,6 +337,8 @@ RETURNS TRIGGER AS $$
 DECLARE
 	_edition_size int;
 BEGIN 	
+
+	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_d;
 -- soonmarket_nft: create new entry if not blacklisted
 	INSERT INTO soonmarket_nft
 	(blocknum, block_timestamp, asset_id, template_id, schema_id, collection_id, 
@@ -393,12 +402,40 @@ DECLARE
 	_id bigint;
 	_serial int;
 	_template_id bigint;
+	-- listing params
+	_blocknum bigint;
+	_block_timestamp bigint;
+	_listing_date bigint; 
+	_listing_token text;
+	_listing_price DOUBLE PRECISION;
+	_listing_royalty DOUBLE PRECISION;
+	_listing_seller text;
+	_primary_asset_id bigint;
+	_bundle boolean;
+	_bundle_size int;
 BEGIN 	
 -- soonmarket_nft: update auction data for all assets within listing (in case of bundle listing)
-	RAISE WARNING '[%]: execution of trigger started at %', TG_NAME, clock_timestamp();
+	RAISE WARNING '[%]: execution of trigger for listing_id %s started at %', TG_NAME, NEW.sale_id, clock_timestamp();
+
+	IF 
+		NOT ((SELECT COUNT(*) FROM atomicmarket_sale WHERE sale_id = NEW.sale_id ) != 0 AND
+		(SELECT COUNT(*) FROM atomicmarket_sale_asset WHERE sale_id = NEW.sale_id ) != 0 AND
+		((SELECT COUNT(*) FROM atomicmarket_sale_asset WHERE sale_id = NEW.sale_id ) = (SELECT bundle_size FROM atomicmarket_sale WHERE sale_id = NEW.sale_id)))
+	THEN
+		RAISE WARNING '[%] Necessary data to update soonmarket_nft* tables for sale_id % is not present', TG_NAME, NEW.sale_id;
+		RETURN NEW;
+	END IF;
+
+	SELECT 
+		blocknum, block_timestamp, block_timestamp, token, price, collection_fee, bundle, bundle_size, seller, primary_asset_id
+	INTO 
+		_blocknum, _block_timestamp, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size, _listing_seller, _primary_asset_id
+	FROM atomicmarket_sale
+	WHERE sale_id = NEW.sale_id;
+
 	UPDATE soonmarket_nft
-	SET (listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
-		(NEW.sale_id, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size)
+	SET (blocknum, block_timestamp, listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
+		(_blocknum, _block_timestamp, NEW.sale_id, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_sale_asset where sale_id = NEW.sale_id);
 	
 -- soonmarket_nft_card table
@@ -407,18 +444,18 @@ BEGIN
 	SELECT edition_size, template_id, serial 
 	INTO _edition_size, _template_id, _serial 
 	FROM soonmarket_asset_base_v 
-	WHERE asset_id = NEW.primary_asset_id;
+	WHERE asset_id = _primary_asset_id;
 	
 	-- if single listing, update card
-	IF NEW.bundle IS NOT true THEN
+	IF _bundle IS NOT true THEN
 		-- if 1:1 update listing info
 		IF _edition_size = 1 THEN
 			UPDATE soonmarket_nft_card		
-			SET (listing_id, listing_seller, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
-				(NEW.sale_id, NEW.seller, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size),
-				 _card_quick_action = CASE WHEN NEW.bundle THEN 'no_action' ELSE 'quick_buy' END,
-				 _card_state = CASE WHEN NEW.bundle THEN 'bundle' ELSE 'single' END
-			WHERE asset_id = NEW.primary_asset_id;
+			SET (blocknum, block_timestamp, listing_id, listing_seller, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
+				(_blocknum, _block_timestamp, NEW.sale_id, _listing_seller, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size),
+				 _card_quick_action = 'quick_buy',
+				 _card_state = 'single' 
+			WHERE asset_id = _primary_asset_id;
 		
 		-- if multiedition check, update floor price and num_listings
 		ELSE			
@@ -432,10 +469,10 @@ BEGIN
 		
 		-- updating card to primary NFT values and listing
 		UPDATE soonmarket_nft_card 
-		SET (listing_id, listing_seller, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
-			(NEW.sale_id, NEW.seller, NEW.block_timestamp, NEW.token, NEW.price, NEW.collection_fee, NEW.bundle, NEW.bundle_size),
+		SET (blocknum, block_timestamp, listing_id, listing_seller, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
+			(_blocknum, _block_timestamp, NEW.sale_id, _listing_seller, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size),
 			 serial = _serial,
-			 asset_id = NEW.primary_asset_id,
+			 asset_id = _primary_asset_id,
 			 _card_quick_action ='no_action',
 			 _card_state = 'bundle',
 			 display = true
@@ -444,14 +481,8 @@ BEGIN
 		-- update num_bundles for all editions included in bundle (can be multiple template_ids)	
 		UPDATE soonmarket_nft_card SET num_bundles = COALESCE(num_bundles,0)+1 
 		WHERE edition_size !=1 AND template_id in (SELECT template_id from atomicmarket_sale_asset WHERE sale_id = NEW.sale_id);
-		
+
 	END IF;		
-	
-	-- update potential unlisted card state for all templates (if listing was bundle can be multiple)
-	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
-	FROM atomicmarket_sale_asset 
-	WHERE sale_id = NEW.sale_id
-	GROUP BY template_id;
 	
 	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
@@ -464,6 +495,15 @@ AFTER INSERT ON public.atomicmarket_sale
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_nft_tables_listing_created_f();
 
+-- Additional trigger for atomicmarket_sale_assets, since we need information
+-- from both tables: sale and sale_assets and the insert order is not guaranteed
+
+CREATE OR REPLACE TRIGGER soonmarket_nft_tables_assets_listing_started_tr
+    AFTER INSERT
+    ON public.atomicmarket_sale_asset
+    FOR EACH ROW
+EXECUTE FUNCTION public.soonmarket_nft_tables_listing_created_f();
+
 ---------------------------------------------------------------
 -- Trigger for listing update (cancel or purchase)
 ---------------------------------------------------------------
@@ -475,6 +515,9 @@ DECLARE
 	_card_template_id bigint;
 	_card_edition_size bigint;
 BEGIN  
+
+	RAISE WARNING '[%]: execution of trigger for listing_id %s started at %', TG_NAME, NEW.sale_id, clock_timestamp();
+
 	SELECT * INTO _card_asset_id, _card_template_id, _card_edition_size FROM soonmarket_nft_tables_clear_f(null, NEW.sale_id);
 	-- check if asset was listed: update potential floor listing since listing is now invalid
 	EXECUTE soonmarket_tables_update_listed_card_f(_card_template_id);
@@ -504,6 +547,18 @@ EXECUTE FUNCTION soonmarket_nft_tables_listing_update_f();
 CREATE OR REPLACE FUNCTION soonmarket_nft_tables_buyoffer_created_f()
 RETURNS TRIGGER AS $$
 BEGIN 	
+
+	RAISE WARNING '[%] Started Execution of trigger for buyoffer_id % started at %', TG_NAME, NEW.buyoffer_id, clock_timestamp();
+
+	IF 
+		NOT ((SELECT COUNT(*) FROM atomicmarket_buyoffer WHERE buyoffer_id = NEW.buyoffer_id ) != 0 AND
+		(SELECT COUNT(*) FROM atomicmarket_buyoffer_asset WHERE buyoffer_id = NEW.buyoffer_id ) != 0 AND
+		((SELECT COUNT(*) FROM atomicmarket_buyoffer_asset WHERE buyoffer_id = NEW.buyoffer_id ) = (SELECT bundle_size FROM atomicmarket_buyoffer WHERE buyoffer_id = NEW.buyoffer_id)))
+	THEN
+		RAISE WARNING '[%] Necessary data to update soonmarket_nft* tables for buyoffer_id % is not present',TG_NAME, NEW.buyoffer_id;
+		RETURN NEW;
+	END IF;
+
 -- soonmarket_nft: set has_offers
 	
 	UPDATE soonmarket_nft
@@ -533,6 +588,15 @@ AFTER INSERT ON public.atomicmarket_buyoffer
 FOR EACH ROW 
 EXECUTE FUNCTION soonmarket_nft_tables_buyoffer_created_f();		
 
+-- Additional trigger for atomicmarket_buyoffer_assets, since we need information
+-- from both tables: buyoffer and buyoffer_assets and the insert order is not guaranteed
+
+CREATE OR REPLACE TRIGGER soonmarket_nft_tables_assets_buyoffer_started_tr
+    AFTER INSERT
+    ON public.atomicmarket_buyoffer_asset
+    FOR EACH ROW
+EXECUTE FUNCTION public.soonmarket_nft_tables_buyoffer_created_f();
+
 ---------------------------------------------------------
 -- Trigger for buyoffers
 ---------------------------------------------------------
@@ -544,6 +608,9 @@ DECLARE
 	_card_template_id bigint;
 	_card_edition_size int;
 BEGIN 	
+
+	RAISE WARNING 'Started Execution of trigger % for buyoffer_id %', TG_NAME, NEW.buyoffer_id;
+
 -- soonmarket_nft: set has_offers	
 	WITH buyoffers AS (
     	SELECT t1.asset_id, 

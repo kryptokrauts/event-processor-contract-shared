@@ -44,6 +44,8 @@ WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 where t1.sale_id=t2.sa
 GROUP BY t1.sale_id
 )
 SELECT 
+	t2.blocknum,
+	t2.block_timestamp,
 	t1.sale_id AS listing_id,
 	t3.asset_id,
 	t3.template_id,
