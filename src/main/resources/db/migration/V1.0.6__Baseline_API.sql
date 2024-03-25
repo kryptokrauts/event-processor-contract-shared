@@ -689,6 +689,7 @@ CREATE OR REPLACE VIEW soonmarket_my_trading_history_v AS
 WITH all_sales AS(
  	SELECT
  	 'listing' AS sale_type, 
+	 	t2.sale_id as sale_type_id,
 		t2.buyer,
 		t1.collection_id,
 		t1.primary_asset_id AS asset_id,    
@@ -707,6 +708,7 @@ WITH all_sales AS(
 UNION ALL
  	SELECT 
 		'auction', 
+		t2.auction_id,
 		t2.buyer,
 		t1.collection_id,
 		t1.primary_asset_id,
@@ -725,6 +727,7 @@ UNION ALL
 UNION ALL
  	SELECT 
 		'offer',
+		t2.buyoffer_id,
 		t1.buyer,
 		t1.collection_id,
 		t1.primary_asset_id,
@@ -770,6 +773,7 @@ CREATE OR REPLACE VIEW soonmarket_my_royalties_v AS
 WITH all_sales AS(
  	SELECT
  	 'listing' AS sale_type, 
+	 	t1.sale_id as sale_type_id,
 		t1.primary_asset_id AS asset_id,    
 		t2.block_timestamp AS sale_date,
 		t1.token,
@@ -778,13 +782,16 @@ WITH all_sales AS(
 		t2.taker_market_fee,
 		t1.collection_fee AS royalty,
 		t1.bundle,
-		t1.bundle_size
+		t1.bundle_size,
+		t1.seller,
+		t2.buyer
   FROM (atomicmarket_sale_state t2
   LEFT JOIN atomicmarket_sale t1 ON ((t1.sale_id = t2.sale_id)))
   WHERE (t2.state = 3)
 UNION ALL
  	SELECT 
 		'auction', 
+		t1.auction_id,
 		t1.primary_asset_id,
 		t2.block_timestamp,
 		t1.token,
@@ -793,13 +800,16 @@ UNION ALL
 		t2.taker_market_fee,
 		t1.collection_fee,
 		t1.bundle,
-		t1.bundle_size
+		t1.bundle_size,
+		t1.seller,
+		t2.buyer
 	FROM (atomicmarket_auction_state t2
 	LEFT JOIN atomicmarket_auction t1 ON ((t1.auction_id = t2.auction_id)))
   WHERE (t2.state = 3)
 UNION ALL
  	SELECT 
 		'offer',
+		t1.buyoffer_id,
 		t1.primary_asset_id,
 		t2.block_timestamp,
 		t1.token,
@@ -808,7 +818,9 @@ UNION ALL
 		t2.taker_market_fee,
 		t1.collection_fee,
 		t1.bundle,
-		t1.bundle_size
+		t1.bundle_size,
+		t1.seller,
+		t1.buyer
   FROM (atomicmarket_buyoffer_state t2
   LEFT JOIN atomicmarket_buyoffer t1 ON ((t1.buyoffer_id = t2.buyoffer_id)))
   WHERE (t2.state = 3))
