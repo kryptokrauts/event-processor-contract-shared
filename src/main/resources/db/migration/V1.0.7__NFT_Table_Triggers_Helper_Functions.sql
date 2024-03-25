@@ -324,7 +324,8 @@ DECLARE
 	_min_edition_serial int;
 	_min_edition_asset_id bigint;
 BEGIN
-	IF _template_id IS NULL THEN
+	-- only applicable for editions
+	IF _template_id IS NULL OR (SELECT edition_size FROM soonmarket_template_v WHERE template_id = _template_id) = 1 THEN
 		RETURN;
 	END IF;
 

@@ -118,8 +118,11 @@ BEGIN
 	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
 	
 	SELECT * INTO _card_asset_id, _card_template_id, _card_edition_size FROM soonmarket_nft_tables_clear_f(NEW.auction_id, null);
-	-- update unlisted card state
-	EXECUTE soonmarket_tables_update_unlisted_card_f(_card_template_id);
+	-- update potential unlisted card state for all templates (if auction was bundle can be multiple)
+	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
+	FROM atomicmarket_auction_asset 
+	WHERE auction_id = NEW.auction_id
+	GROUP BY template_id;
 		
 	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
@@ -153,8 +156,12 @@ BEGIN
 		RAISE WARNING 'Updating lastSoldFor after successful auction with_id %', NEW.auction_id;
 		EXECUTE soonmarket_nft_tables_update_last_sold_for_f(_card_asset_id, _card_template_id, _card_edition_size);
 	END IF;
-	-- update unlisted card state
-	EXECUTE soonmarket_tables_update_unlisted_card_f(_card_template_id);
+
+	-- update potential unlisted card state for all templates (if auction was bundle can be multiple)
+	PERFORM soonmarket_tables_update_unlisted_card_f(template_id)
+	FROM atomicmarket_auction_asset 
+	WHERE auction_id = NEW.auction_id
+	GROUP BY template_id;
 
 	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
