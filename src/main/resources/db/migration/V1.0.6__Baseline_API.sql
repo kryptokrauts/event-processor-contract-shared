@@ -512,7 +512,7 @@ t2.image,
 (SELECT COUNT(DISTINCT listing_id) FROM valid_sales v WHERE v.collection_id=t1.collection_id) AS num_listings,
 (SELECT total_sales FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id)  AS total_sales,
 0 AS num_stars,
-DATA ->> 'url' AS socials,
+DATA ->> 'socials' AS socials,
 (SELECT total_volume_usd FROM soonmarket_collection_stats_mv stats WHERE stats.collection_id=t1.collection_id) AS total_volume_usd,
 (SELECT string_agg(SCHEMA_NAME,',') FROM atomicassets_schema sc WHERE sc.collection_id=t1.collection_id GROUP BY sc.collection_id) AS schemes,
 DATA ->> 'banner' AS banner,
@@ -528,7 +528,9 @@ CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE
 t2.name,                                                                          
 t2.description,
 t5.schema_id,
-t5.schema_name
+t5.schema_name,
+DATA ->> 'url' AS url,
+DATA ->> 'images' AS images
 FROM atomicassets_collection t1                                                   
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current

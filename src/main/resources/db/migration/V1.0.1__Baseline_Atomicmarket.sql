@@ -555,9 +555,10 @@ BEGIN
         FOR t_table_name IN 
             SELECT table_name
             FROM information_schema.tables
-            WHERE table_name LIKE 'atomicmarket_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event'
+            WHERE (table_name LIKE 'atomicmarket_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event') AND TABLE_NAME != 'atomicmarket_reset_log'
         LOOP
             dynamic_sql := 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= $1';
+						RAISE WARNING '[%] executing delete statement %', TG_NAME, 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= ' || NEW.clean_after_blocknum;
             EXECUTE dynamic_sql USING NEW.clean_after_blocknum;
         END LOOP;
     END IF;
