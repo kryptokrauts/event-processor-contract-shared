@@ -679,7 +679,8 @@ SELECT
 t1.owner,
 t1.asset_id,
 t2.template_id,
-t2.collection_id
+t2.collection_id,
+t2.serial
 FROM atomicassets_asset_owner_log t1 
 LEFT JOIN atomicassets_asset t2 ON t1.asset_id=t2.asset_id 
 WHERE t1.current AND NOT t1.burned;
