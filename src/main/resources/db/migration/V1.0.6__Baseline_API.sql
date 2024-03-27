@@ -4,6 +4,9 @@
 ----------------------------------
 
 CREATE OR REPLACE VIEW soonmarket_buyoffer_open_v AS
+WITH config as (
+SELECT maker_fee+taker_fee as market_fee FROM atomicmarket_config ORDER BY id DESC LIMIT 1	
+)
 SELECT 
 	gen_random_uuid() AS id,
 	t1.blocknum AS blocknum, 
@@ -28,9 +31,9 @@ SELECT
 	t1.price,
 	t1.memo,
 	t1.collection_fee AS royalty,
-	0.02::DOUBLE PRECISION AS market_fee,
+	config.market_fee,
 	t5.shielded
-FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
+FROM config,(SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
 LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
@@ -70,7 +73,7 @@ FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atom
 LEFT JOIN soonmarket_asset_base_v t4 ON t1.primary_asset_id=t4.asset_id
 LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
 
-COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get my open buyoffers for given asset or template';
+COMMENT ON VIEW soonmarket_my_offers_v IS 'Get my open buyoffers for given asset or template';
 
 ----------------------------------
 -- NFT Card View
@@ -112,7 +115,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
     last_sold_for_token text,
     last_sold_for_price_usd numeric,
     last_sold_for_royalty_usd numeric,
-    last_sold_for_market_fee_usd numeric,    
+    last_sold_for_market_fee_usd numeric,		
     listing_id bigint,
     listing_price double precision,
     listing_token text ,
@@ -299,6 +302,7 @@ SELECT
 	t9.price * t11.usd as last_sold_for_price_usd,
 	t9.price * t9.royalty * t11.usd as last_sold_for_royalty_usd,
 	t9.price * (t9.maker_market_fee+t9.taker_market_fee) * t11.usd as last_sold_for_market_fee_usd,
+	t9.bundle as last_sold_for_bundle,
 	t7.auction_id,
 	t7.auction_end AS auction_end_date,
 	t7.token as auction_token,

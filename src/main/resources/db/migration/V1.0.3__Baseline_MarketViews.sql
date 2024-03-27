@@ -80,13 +80,14 @@ WITH ranked_prices AS (
         s.taker_market_fee,
 				r.token,
 				s.buyer,
+				r.bundle,
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_auction_asset a
     JOIN
         atomicmarket_auction_state s ON a.auction_id = s.auction_id
    INNER JOIN atomicmarket_auction r ON a.auction_id=r.auction_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3
 )
 SELECT
     r1.*,
@@ -110,14 +111,15 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,
 				r.token,
-				s.buyer,		
+				s.buyer,	
+				r.bundle,	
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_auction_asset a
     JOIN
         atomicmarket_auction_state s ON a.auction_id = s.auction_id
    INNER JOIN atomicmarket_auction r ON a.auction_id=r.auction_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3
 )
 SELECT
     r1.*,		
@@ -141,14 +143,15 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,
 				r.token,
-				r.buyer,						             
+				r.buyer,	
+				r.bundle,					             
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_buyoffer_asset a
     JOIN
         atomicmarket_buyoffer_state s ON a.buyoffer_id = s.buyoffer_id
    INNER JOIN atomicmarket_buyoffer r ON a.buyoffer_id=r.buyoffer_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3 
 )
 SELECT
     r1.*,	
@@ -172,14 +175,15 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,	
 				r.token,	
-				r.buyer,		       
+				r.buyer,		
+				r.bundle,       
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_buyoffer_asset a
     JOIN
         atomicmarket_buyoffer_state s ON a.buyoffer_id = s.buyoffer_id
    INNER JOIN atomicmarket_buyoffer r ON a.buyoffer_id=r.buyoffer_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3
 )
 SELECT
     r1.*,
@@ -203,14 +207,15 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,
 				r.token,	
-				s.buyer,				
+				s.buyer,	
+				r.bundle,			
         ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_sale_asset a
     JOIN
         atomicmarket_sale_state s ON a.sale_id = s.sale_id
    INNER JOIN atomicmarket_sale r ON a.sale_id=r.sale_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3
 )
 SELECT
     r1.*,	
@@ -234,14 +239,15 @@ WITH ranked_prices AS (
         s.maker_market_fee,
         s.taker_market_fee,	
 				r.token,
-				s.buyer,				
+				s.buyer,	
+				r.bundle,			
         ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
     FROM
         atomicmarket_sale_asset a
     JOIN
         atomicmarket_sale_state s ON a.sale_id = s.sale_id
    INNER JOIN atomicmarket_sale r ON a.sale_id=r.sale_id
-        WHERE s.state=3 AND NOT r.bundle
+        WHERE s.state=3
 )
 SELECT
     r1.*,	
@@ -267,6 +273,7 @@ WITH all_prices AS (
 		token,
 		buyer,		
 	  sourcetype,
+		bundle,
 	  ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY block_timestamp DESC) AS rn
 	FROM
 	(
@@ -279,11 +286,12 @@ WITH all_prices AS (
 )
 SELECT 
 t1.*,
-t1.price * t2.usd AS price_usd
+t1.price * COALESCE(t2.usd,t3.usd) AS price_usd
 FROM all_prices t1 
 LEFT JOIN soonmarket_exchange_rate_historic_v t2 
 	ON t1.token=t2.token_symbol 
 	AND TO_CHAR(TO_TIMESTAMP(t1.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t2.utc_date
+LEFT JOIN soonmarket_exchange_rate_latest_v t3 ON t1.token=t3.token_symbol			
 WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_asset_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
@@ -302,6 +310,7 @@ WITH all_prices AS (
 		token,		
 		buyer,
 	  sourcetype,
+		bundle,
 	  ROW_NUMBER() OVER (PARTITION BY template_id ORDER BY block_timestamp DESC) AS rn
 	FROM
 	(
@@ -314,11 +323,12 @@ WITH all_prices AS (
 )
 SELECT 
 t1.*,
-t1.price * t2.usd AS price_usd
+t1.price * COALESCE(t2.usd,t3.usd) AS price_usd
 FROM all_prices t1
 LEFT JOIN soonmarket_exchange_rate_historic_v t2 
 	ON t1.token=t2.token_symbol 
 	AND TO_CHAR(TO_TIMESTAMP(t1.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t2.utc_date
+LEFT JOIN soonmarket_exchange_rate_latest_v t3 ON t1.token=t3.token_symbol		
 WHERE rn=1;
 
 COMMENT ON VIEW soonmarket_last_sold_for_template_v IS 'Last sold for price determined from the latest auction, buyoffer or sale';
