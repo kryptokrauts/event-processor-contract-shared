@@ -52,6 +52,8 @@ BEGIN
 	-- for every valid listing that is not in soonmarket_nft, add listing by "simulating" a new listing
 	INSERT INTO atomicmarket_sale 
 	SELECT * FROM deleted_listings;
+
+	-- TODO: do the same for buyoffers
 			
 	RAISE WARNING '[%] Execution of trigger for transfer_id % took % ms', TG_NAME, transfer_id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 
@@ -360,7 +362,7 @@ DECLARE
 	_template_id bigint;
 BEGIN 	
 
-	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_d;
+	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_id;
 -- soonmarket_nft: update burned flag	
 	UPDATE soonmarket_nft
 	SET burned = true, burned_by = NEW.owner, burned_date = NEW.block_timestamp
@@ -408,7 +410,7 @@ CREATE OR REPLACE FUNCTION soonmarket_nft_tables_update_owner_f()
 RETURNS TRIGGER AS $$
 BEGIN 	
 
-	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_d;
+	RAISE WARNING 'Started Execution of trigger % for asset_id %', TG_NAME, NEW.asset_id;
 
 -- soonmarket_nft: update owner
 	UPDATE soonmarket_nft
