@@ -232,8 +232,8 @@ BEGIN
 -- soonmarket_nft: update auction data for all assets within auction (in case of bundle auction)
 	
 	UPDATE soonmarket_nft
-	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
-		(_blocknum, _block_timestamp, NEW.auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size)
+	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, auction_seller, bundle, bundle_size) =
+		(_blocknum, _block_timestamp, NEW.auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _auction_seller, _bundle, _bundle_size)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = NEW.auction_id);
 	RAISE WARNING 'Update soonmarket_nft for auction_id %: %',  NEW.auction_id, (select id from soonmarket_nft where auction_id=NEW.auction_id limit 1);
 -- soonmarket_nft_card table

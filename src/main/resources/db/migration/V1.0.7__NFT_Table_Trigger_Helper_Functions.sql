@@ -42,6 +42,7 @@ BEGIN
 		auction_current_bid = null,
 		auction_end_date = null,
 		auction_royalty = null,
+		auction_seller = null,
 		listing_id = null,
 		listing_token = null,
 		listing_price = null,

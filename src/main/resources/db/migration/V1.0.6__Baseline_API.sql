@@ -323,6 +323,7 @@ SELECT
 	t7.current_bid as auction_current_bid,
 	t7.collection_fee AS auction_royalty,	
 	t7.num_bids,
+	t7.seller AS auction_seller,
 	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
 	COALESCE(t7.bundle_size,t8.bundle_size,null) AS bundle_size,		
 	t8.listing_id,
@@ -362,7 +363,7 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_templateid_creator_editionsize
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burned_owner
     ON public.soonmarket_nft USING btree
-    (burned,owner)
+    (burned,owner,auction_id)
     TABLESPACE pg_default;				
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_editionsize
@@ -418,7 +419,12 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_template_id
 CREATE INDEX IF NOT EXISTS idx_soonmarket_collection_id
     ON public.soonmarket_nft USING btree
     (collection_id)
-    TABLESPACE pg_default;										
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_nft_burned_auction_seller
+    ON public.soonmarket_nft USING btree
+    (burned,auction_seller,auction_id)
+    TABLESPACE pg_default;												
 
 ----------------------------------
 -- MyNFTs View
