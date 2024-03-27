@@ -302,27 +302,11 @@ EXECUTE FUNCTION soonmarket_nft_tables_auction_started_f();
 -- Additional trigger for atomicmarket_auction_assets, since we need information
 -- from both tables: auction and auction_assets and the insert order is not guaranteed
 
-CREATE OR REPLACE FUNCTION public.soonmarket_nft_tables_assets_auction_started_f()
-    RETURNS trigger
-    LANGUAGE 'plpgsql'
-AS $BODY$
-BEGIN 	
-
-	RAISE WARNING 'Started Execution of trigger % for auction_id %', TG_NAME, NEW.auction_id;
-
-	PERFORM soonmarket_nft_tables_auction_insert_f(NEW.auction_id);
-	
-	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
-
-	RETURN NEW;
-END;
-$BODY$;
-
 CREATE OR REPLACE TRIGGER soonmarket_nft_tables_assets_auction_started_tr
     AFTER INSERT
     ON public.atomicmarket_auction_asset
     FOR EACH ROW
-EXECUTE FUNCTION public.soonmarket_nft_tables_assets_auction_started_f();
+EXECUTE FUNCTION public.soonmarket_nft_tables_auction_started_f();
 
 ---------------------------------------------------------
 -- Trigger for claim NFT by buyer
@@ -565,7 +549,7 @@ BEGIN
 
 	-- if bundle listing, add additional NFT entry
 	IF _bundle THEN
-		RAISE WARNING '[%] Listing with id % is bundle, adding entry to soonmarket_nft', TG_NAME, NEW.sale_id;
+		RAISE WARNING '[%] New Listing with id % is bundle, adding entry to soonmarket_nft', TG_NAME, NEW.sale_id;
 		SELECT * INTO _id FROM copy_row_f((SELECT template_id FROM soonmarket_asset_base_v WHERE asset_id = _primary_asset_id),'soonmarket_nft');
 
 		UPDATE soonmarket_nft
@@ -574,6 +558,7 @@ BEGIN
 		WHERE id = _id;
 	
 	ELSE
+		RAISE WARNING '[%] New Listing with id % is not a bundle, updating entry in soonmarket_nft', TG_NAME, NEW.sale_id;
 		-- otherwise just update
 		UPDATE soonmarket_nft
 		SET (blocknum, block_timestamp, listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
@@ -593,6 +578,7 @@ BEGIN
 	IF _bundle IS false THEN
 		-- if 1:1 update listing info
 		IF _edition_size = 1 THEN
+			RAISE WARNING '[%] New listing with id % is not a bundle, updating card in soonmarket_nft_card for asset_id %', TG_NAME, NEW.sale_id,_primary_asset_id;
 			UPDATE soonmarket_nft_card		
 			SET (blocknum, block_timestamp, listing_id, listing_seller, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
 				(_blocknum, _block_timestamp, NEW.sale_id, _listing_seller, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size),
@@ -601,14 +587,15 @@ BEGIN
 			WHERE asset_id = _primary_asset_id;
 		
 		-- if edition check, update floor price and num_listings
-		ELSE			
+		ELSE	
+			RAISE WARNING '[%] New listing with id % is not a bundle, updating card in soonmarket_nft_card for template_id %', TG_NAME, NEW.sale_id,_template_id;
 			EXECUTE soonmarket_tables_update_listed_card_f(_template_id);
 		END IF;
 	
 	-- otherwise its a bundle listing
 	ELSE
 		-- create a new bundle card by duplicating the existing 
-		RAISE WARNING '[%] Listing with id % is bundle, adding entry to soonmarket_nft_card', TG_NAME, NEW.sale_id;
+		RAISE WARNING '[%] Listing with id % is bundle, adding new entry to soonmarket_nft_card', TG_NAME, NEW.sale_id;
 		SELECT * INTO _id FROM copy_row_f(_template_id,'soonmarket_nft_card');
 		
 		-- updating card to primary NFT values and listing

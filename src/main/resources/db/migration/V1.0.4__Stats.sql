@@ -4,19 +4,19 @@
 
 CREATE OR replace VIEW soonmarket_sale_stats_v as
 Select
-	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price 
+	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size
 	FROM atomicmarket_sale_state t2
 	LEFT JOIN atomicmarket_sale t1  ON t1.sale_id=t2.sale_id
 	WHERE STATE=3 
 UNION ALL
 SELECT 
-	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t2.winning_bid 
+	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t2.winning_bid,t1.bundle_size
 	FROM atomicmarket_auction_state t2 
 	LEFT JOIN atomicmarket_auction t1  ON t1.auction_id=t2.auction_id
 	WHERE STATE=3 
 UNION ALL
 SELECT  
-	t1.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price 
+	t1.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size
 	FROM atomicmarket_buyoffer_state t2
 	LEFT JOIN atomicmarket_buyoffer t1 ON t1.buyoffer_id=t2.buyoffer_id
 	WHERE STATE=3;	
@@ -50,11 +50,13 @@ SELECT
 	burned,
 	COUNT(*) AS num_nfts,
 	round_to_decimals_f((COUNT(*)::DOUBLE PRECISION / (total-burned)) * 100) AS owned,
-	t3.num_bought
+	t3.num_bought,
+	t4.num_sold
 FROM collection_owner t1
 LEFT JOIN collection_total t2 ON t1.collection_id=t2.collection_id
-LEFT JOIN (select COUNT(buyer) AS num_bought, buyer, collection_id from soonmarket_sale_stats_v GROUP BY collection_id,buyer)t3 ON t1.collection_id=t3.collection_id AND buyer=t1.account
-GROUP BY t1.collection_id, account,total,burned,num_bought;
+LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_bought, buyer, collection_id from soonmarket_sale_stats_v GROUP BY collection_id,buyer)t3 ON t1.collection_id=t3.collection_id AND buyer=t1.account
+LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_sold, seller, collection_id from soonmarket_sale_stats_v GROUP BY collection_id,seller)t4 ON t1.collection_id=t4.collection_id AND seller=t1.account
+GROUP BY t1.collection_id, account,total,burned,num_bought,num_sold;
 
 COMMENT ON MATERIALIZED VIEW soonmarket_collection_holder_mv IS 'List of collection holders and stats';
 
