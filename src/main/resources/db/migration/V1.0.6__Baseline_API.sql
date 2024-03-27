@@ -6,6 +6,17 @@
 CREATE OR REPLACE VIEW soonmarket_buyoffer_open_v AS
 WITH config as (
 SELECT maker_fee+taker_fee as market_fee FROM atomicmarket_config ORDER BY id DESC LIMIT 1	
+),
+valid_offers AS (
+SELECT 
+	t1.buyoffer_id,
+	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID,
+	BOOL_OR(burned) AS burned
+FROM atomicmarket_buyoffer t1 
+INNER JOIN atomicmarket_buyoffer_asset t3 ON t1.buyoffer_id=t3.buyoffer_id
+LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current
+WHERE NOT EXISTS(SELECT 1 from atomicmarket_buyoffer_state t2 where t1.buyoffer_id=t2.buyoffer_id)
+GROUP BY t1.buyoffer_id
 )
 SELECT 
 	gen_random_uuid() AS id,
@@ -33,10 +44,12 @@ SELECT
 	t1.collection_fee AS royalty,
 	config.market_fee,
 	t5.shielded
-FROM config,(SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
+FROM config, valid_offers v
+LEFT JOIN atomicmarket_buyoffer t1 ON v.buyoffer_id = t1.buyoffer_id
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
-LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
+LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id
+WHERE v.valid AND NOT v.burned;
 
 COMMENT ON VIEW soonmarket_buyoffer_open_v IS 'Get open buyoffers for given asset or template';
 
