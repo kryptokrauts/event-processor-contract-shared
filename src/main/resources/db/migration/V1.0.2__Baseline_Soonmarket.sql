@@ -239,3 +239,29 @@ CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_gaps_v
            FROM soonmarket_exchange_rate sm
              JOIN timespan ts ON sm.utc_date::timestamp without time zone = ts._date AND sm.asset_id = ts.asset_id))
   ORDER BY asset_id, _date;
+
+----------------------------------
+-- SOON Spot Promotion 
+----------------------------------
+
+CREATE TABLE IF NOT EXISTS public.soonmarket_promotion
+(		
+    id BIGSERIAL,
+		blocknum bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+		transfer_id BIGINT NOT NULL,
+		tx_id TEXT NOT NULL,
+		promotion_type TEXT NOT NULL,
+		promotion_object TEXT NOT NULL,
+    promotion_object_id TEXT NOT NULL,
+		promotion_end_timestamp BIGINT,    
+    active boolean NOT NULL,
+    PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_promotion_poi
+    ON public.soonmarket_promotion USING btree
+    (promotion_object_id, promotion_object)
+    TABLESPACE pg_default;

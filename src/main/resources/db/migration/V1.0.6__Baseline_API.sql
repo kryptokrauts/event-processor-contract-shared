@@ -260,10 +260,12 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	SELECT
 	t1.*,
 	t2.listing_id,
-	t3.auction_id
+	t3.auction_id,
+	t4.promotion_type
 FROM soonmarket_asset_v t1
 LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_valid_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
-LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned;
+LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned
+LEFT JOIN soonmarket_promotion t4 ON t4.promotion_object_id = t3.auction_id::text AND t4.promotion_object = 'auction' AND t4.active;
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 
@@ -535,7 +537,8 @@ t2.description,
 t5.schema_id,
 t5.schema_name,
 DATA ->> 'url' AS url,
-DATA ->> 'images' AS images
+DATA ->> 'images' AS images,
+promotion_type
 FROM atomicassets_collection t1                                                   
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current
@@ -543,7 +546,8 @@ LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
-LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE;
+LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE
+LEFT JOIN soonmarket_promotion p1 ON p1.promotion_object_id = t1.collection_id AND p1.promotion_object = 'collection' AND p1.active;
 
 ----------------------------------
 -- Edition
