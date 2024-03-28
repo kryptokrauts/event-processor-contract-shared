@@ -867,8 +867,12 @@ SELECT
 	t2.serial,
 	t2.edition_size,
 	t2.template_id,
-	t2.owner
+	t2.owner,
+	t1.price*t3.usd*t1.royalty AS filter_price_usd
 FROM all_sales t1
-LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id = t2.asset_id;
+LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id = t2.asset_id
+LEFT JOIN soonmarket_exchange_rate_historic_v t3 
+	ON t1.token = t3.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t1.sale_date / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t3.utc_date;
 
 COMMENT ON VIEW public.soonmarket_my_royalties_v IS 'View for my royalties';
