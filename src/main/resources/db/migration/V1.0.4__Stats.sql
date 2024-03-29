@@ -200,3 +200,36 @@ LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing
 LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
 
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_180d_mv ON soonmarket_collection_stats_180d_mv (collection_id);
+
+--
+
+CREATE MATERIALIZED VIEW soonmarket_collection_stats_all_mv as
+WITH stats AS(
+SELECT
+	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
+	COUNT(*) AS total_sales,
+	vol.collection_id
+	FROM soonmarket_sale_stats_v vol
+LEFT JOIN soonmarket_exchange_rate_historic_v her ON
+her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
+AND her.token_symbol=vol.token
+GROUP BY vol.collection_id
+)
+SELECT 
+t1.* ,
+c2.name AS collection_name,
+c2.image as collection_image,
+c1.creator,
+a1.shielded,
+round_to_decimals_f(t3.listing_price_usd) AS floor_price_usd,
+t4.total as unique_holders,
+(SELECT COUNT(DISTINCT listing_id) FROM soonmarket_listing_valid_v v WHERE v.collection_id=t1.collection_id) AS num_listed,
+(SELECT COUNT(*) FROM atomicassets_asset_owner_log WHERE current and not burned and asset_id in (select asset_id from atomicassets_asset WHERE collection_id=t1.collection_id)) AS num_assets
+FROM stats t1
+LEFT JOIN atomicassets_collection c1 ON t1.collection_id=c1.collection_id 
+LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_id AND c2.current
+LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
+LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_valid_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
+LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
+
+CREATE UNIQUE INDEX pk_soonmarket_collection_stats_all_mv ON soonmarket_collection_stats_all_mv (collection_id);
