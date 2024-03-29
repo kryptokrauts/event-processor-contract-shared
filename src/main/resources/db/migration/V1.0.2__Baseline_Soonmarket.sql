@@ -265,3 +265,24 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_promotion_poi
     ON public.soonmarket_promotion USING btree
     (promotion_object_id, promotion_object)
     TABLESPACE pg_default;
+
+--
+
+CREATE VIEW soonmarket_promotion_stats_v as
+SELECT 
+t1.minted - t1.burned AS circulating,
+t1.burned AS used,
+t2.featured
+FROM (
+	SELECT 
+		creator,
+		template_id,
+	   edition_size AS total,
+		COUNT(*) AS minted,
+		count(CASE WHEN burned THEN 1 end) AS burned,
+		CASE WHEN edition_size != 0 THEN edition_size - COUNT(*) ELSE -1 END AS mintable,
+		MAX(t1.mint_date) AS last_minting_date
+	FROM soonmarket_nft t1
+	WHERE edition_size != 1 AND template_id=51066
+	GROUP BY template_id,edition_size,creator) t1
+LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE active AND promotion_type='silver')t2 ON TRUE;
