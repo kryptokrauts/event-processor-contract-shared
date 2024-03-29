@@ -367,10 +367,11 @@ DECLARE
 BEGIN
 
 	RAISE WARNING '[% - asset_id %] Started Execution of function at %', 'soonmarket_tables_remove_invalid_bundle_listings_f', _asset_id, clock_timestamp();
+	
 -- soonmarket_nft
 	-- clear all listings which have the asset_id
 	WITH deleted as(
-		DELETE FROM soonmarket_nft_card 	
+		DELETE FROM soonmarket_nft
 		WHERE listing_id IN 
 		(SELECT DISTINCT listing_id FROM soonmarket_listing_v WHERE bundle AND asset_id = _asset_id AND state is null AND NOT valid)
 		RETURNING listing_id
@@ -395,7 +396,7 @@ BEGIN
 	IF _delete_count > 0 THEN
 		UPDATE soonmarket_nft_card 
 		SET num_bundles = CASE WHEN num_bundles > _delete_count+1 THEN _delete_count ELSE NULL END 
-		WHERE template_id in (SELECT template_id from soonmarket_listing_bundle_assets_v WHERE listing_id = _listing_id);
+		WHERE template_id in (SELECT template_id from soonmarket_listing_bundle_assets_v WHERE asset_id = _asset_id);
 	END IF;
 
 	RAISE WARNING '[% - asset_id %] Execution of function took % ms', 'soonmarket_tables_remove_invalid_bundle_listings_f', _asset_id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
