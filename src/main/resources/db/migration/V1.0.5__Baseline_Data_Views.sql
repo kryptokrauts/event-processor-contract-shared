@@ -185,6 +185,28 @@ LEFT JOIN soonmarket_asset_base_v t5 ON t5.asset_id=t3.asset_id;
 
 --
 
+CREATE OR REPLACE VIEW soonmarket_auctions_ended_v as
+SELECT 
+	coalesce(t4.blocknum,t1.blocknum) as blocknum,
+	coalesce(t4.block_timestamp,t1.block_timestamp) as block_timestamp,
+	t1.auction_id,
+	COALESCE(t4.updated_end_time,t2.end_time,t1.end_time) as end_time,
+	t4.current_bid as winning_bid,
+	t4.bidder as buyer,
+	t4.taker_marketplace
+FROM atomicmarket_auction t1
+LEFT join atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id = t1.auction_id AND t4.current
+WHERE 
+	t2.state IS NULL AND
+	-- auction end must be 180secs (= 300 blocks) older than auction end to make sure its finalized
+	(floor((EXTRACT(epoch FROM (now() AT TIME ZONE 'utc'::text)) * (1000)::numeric))+180000) >= (COALESCE(t4.updated_end_time,t2.end_time,t1.end_time))::numeric
+ORDER BY t1.auction_id desc;
+
+COMMENT ON VIEW public.soonmarket_auctions_ended_v IS 'Temporary view to check if auction ended';		
+
+--
+
 CREATE OR REPLACE VIEW soonmarket_auction_bundle_assets_v as
 SELECT 
 t1.auction_id,

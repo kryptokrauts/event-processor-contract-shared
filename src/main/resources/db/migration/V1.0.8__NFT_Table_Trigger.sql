@@ -223,9 +223,9 @@ BEGIN
 	-- exit if auction or auction_assets are not present (due to time gap when persisting auction data in kafka sink)
 	-- in case of bundle we need to make sure all auction_asset entries are present
 	IF 
-		NOT ((SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = NEW.auction_id ) != 0 AND
-		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) != 0 AND
-		((SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) = (SELECT bundle_size FROM atomicmarket_auction WHERE auction_id = NEW.auction_id)))
+		(SELECT COUNT(*) FROM atomicmarket_auction WHERE auction_id = NEW.auction_id ) = 0 OR
+		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) = 0 OR
+		((SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) != (SELECT COALESCE(bundle_size,1) FROM atomicmarket_auction WHERE auction_id = NEW.auction_id))
 	THEN
 		RAISE WARNING '[% - auction_id %] Necessary data to update soonmarket_nft* tables for auction_id is not present', TG_NAME, NEW.auction_id;
 		RETURN NEW;
@@ -473,12 +473,12 @@ BEGIN
 	(blocknum, block_timestamp, asset_id, template_id, schema_id, collection_id, 
 	 serial, edition_size, transferable, burnable, owner, mint_date, received_date, 
 	 asset_name, asset_media, asset_media_type, asset_media_preview, 
-	 collection_name, collection_image, royalty, creator, has_kyc, shielded)	
+	 collection_name, collection_image, royalty, creator, has_kyc, shielded, burned)	
 	 SELECT
 	 t1.blocknum, t1.block_timestamp, asset_id, template_id, schema_id, collection_id, 
 	 serial, edition_size, transferable, burnable, t1.receiver, t1.block_timestamp, received_date, 
 	 asset_name, asset_media, asset_media_type, asset_media_preview, 
-	 collection_name, collection_image, royalty, creator, t2.has_kyc, shielded
+	 collection_name, collection_image, royalty, creator, t2.has_kyc, shielded, false
 	 FROM soonmarket_asset_v t1
 	 LEFT JOIN soonmarket_profile t2 ON t1.creator=t2.account
 	 WHERE asset_id = NEW.asset_id AND NOT blacklisted;
