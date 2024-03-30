@@ -227,7 +227,7 @@ BEGIN
 		(SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) != 0 AND
 		((SELECT COUNT(*) FROM atomicmarket_auction_asset WHERE auction_id = NEW.auction_id ) = (SELECT bundle_size FROM atomicmarket_auction WHERE auction_id = NEW.auction_id)))
 	THEN
-		RAISE WARNING '[% - auction_id %]Necessary data to update soonmarket_nft* tables for auction_id is not present', TG_NAME, NEW.auction_id;
+		RAISE WARNING '[% - auction_id %] Necessary data to update soonmarket_nft* tables for auction_id is not present', TG_NAME, NEW.auction_id;
 		RETURN NEW;
 	END IF;
 
@@ -244,7 +244,7 @@ BEGIN
 	SET (blocknum, block_timestamp, auction_id, auction_end_date, auction_token, auction_starting_bid, auction_royalty, auction_seller, bundle, bundle_size) =
 		(_blocknum, _block_timestamp, NEW.auction_id, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _auction_seller, _bundle, _bundle_size)
 	WHERE asset_id in (SELECT asset_id from atomicmarket_auction_asset where auction_id = NEW.auction_id);
-	RAISE WARNING '[% - auction_id %] Update soonmarket_nft table entry with id %', TG_NAME, NEW.auction_id, (select id from soonmarket_nft where auction_id=NEW.auction_id limit 1);
+	RAISE WARNING '[% - auction_id %] Updated soonmarket_nft table entries (bundle = %), primary asset_id: %', TG_NAME, NEW.auction_id, _bundle, _primary_asset_id;
 -- soonmarket_nft_card table
 	
 	-- get edition size
@@ -255,7 +255,7 @@ BEGIN
 	
 	-- if 1:1 singlea auction update card
 	IF _edition_size = 1 AND NOT _bundle THEN
-		RAISE WARNING '[% - auction_id %] is not a bundle and 1of1 - updating soonmarket_nft_card', TG_NAME, NEW.auction_id;
+		RAISE WARNING '[% - auction_id %] is not a bundle and 1of1 - updating soonmarket_nft_card for asset_id %', TG_NAME, NEW.auction_id, _primary_asset_id;
 		UPDATE soonmarket_nft_card		
 	 	SET (blocknum, block_timestamp, auction_id, auction_seller, auction_end_date, auction_token, auction_starting_bid, auction_royalty, bundle, bundle_size) =
 			(_blocknum, _block_timestamp, NEW.auction_id, _auction_seller, _auction_end_date, _auction_token, _auction_starting_bid, _auction_royalty, _bundle, _bundle_size),
@@ -279,6 +279,7 @@ BEGIN
 			 _card_state = CASE WHEN _bundle THEN 'bundle' ELSE 'single' END,
 			 display = true
 		WHERE id = _id;
+		RAISE WARNING '[% - auction_id %] is edition,updated soonmarket_nft_card with id %',TG_NAME, NEW.auction_id, _id;
 	END IF;	
 	
 	-- update num_bundles for all editions included in bundle (can be multiple template_ids)
