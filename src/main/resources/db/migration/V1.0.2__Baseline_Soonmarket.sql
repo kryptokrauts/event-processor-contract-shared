@@ -41,8 +41,8 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_profile
 (
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
-    has_kyc boolean,
-    has_image boolean,
+    has_kyc boolean DEFAULT false,
+    has_image boolean DEFAULT false,
     account TEXT NOT NULL,
 		bio TEXT,
 		has_banner boolean,
