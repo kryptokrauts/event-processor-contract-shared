@@ -2,7 +2,7 @@
 -- default tables
 ----------------------------------	
 
-CREATE TABLE IF NOT EXISTS public.soonmarket_processor_sync_state
+CREATE TABLE IF NOT EXISTS public.t_soonmarket_processor_sync_state
 (
     timestamp bigint NOT NULL,
     processor text PRIMARY KEY,
@@ -17,7 +17,7 @@ TABLESPACE pg_default;
 
 --
 
-CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
+CREATE TABLE IF NOT EXISTS public.t_atomicassets_event_log
 (
 		id bigserial,
     blocknum bigint NOT NULL,
@@ -29,19 +29,19 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_event_log
 )
 TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicassets_event_log_type
-    ON public.atomicassets_event_log USING btree
+CREATE INDEX IF NOT EXISTS idx_t_atomicassets_event_log_type
+    ON public.t_atomicassets_event_log USING btree
     (type ASC NULLS LAST)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicassets_event_log_type_data
-    ON public.atomicassets_event_log USING gin
+CREATE INDEX IF NOT EXISTS idx_t_atomicassets_event_log_type_data
+    ON public.t_atomicassets_event_log USING gin
     (data)
     TABLESPACE pg_default;			
 
-COMMENT ON TABLE public.atomicassets_event_log IS 'Store all raw actions';
+COMMENT ON TABLE public.t_atomicassets_event_log IS 'Store all raw actions';
 
-CREATE TABLE IF NOT EXISTS public.atomicassets_reset_log
+CREATE TABLE IF NOT EXISTS public.t_atomicassets_reset_log
 (
 		id bigserial PRIMARY KEY,		
     blocknum bigint NOT NULL,
@@ -55,25 +55,25 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_reset_log
 TABLESPACE pg_default;
 
 -- trigger to clean all atomicassets_ tables after clean_after_blocknum
-CREATE OR REPLACE FUNCTION atomicassets_reset_log_clean_after_blocknum_f()
+CREATE OR REPLACE FUNCTION t_atomicassets_reset_log_clean_after_blocknum_f()
 RETURNS TRIGGER AS $$
 DECLARE
     t_table_name text;
     t_schema_name text;
     dynamic_sql text;
 BEGIN
-		RAISE WARNING 'Started Execution of trigger % for blocknum %', TG_NAME, NEW.blocknum;
+		RAISE WARNING '[% - blocknum %] Started Execution of trigger', TG_NAME, NEW.blocknum;
 
     t_schema_name := 'public';
 
     -- if clean_database is true
     IF NEW.clean_database THEN
-				RAISE WARNING 'clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
+				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
         -- build dynamic SQL to delete entries from matching tables
         FOR t_table_name IN 
             SELECT table_name
             FROM information_schema.tables
-            WHERE (table_name LIKE 'atomicassets_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event') AND TABLE_NAME != 'atomicassets_reset_log'
+            WHERE table_name LIKE 'atomicassets_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event'
         LOOP
             dynamic_sql := 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= $1';
 						RAISE WARNING '[%] executing delete statement %', TG_NAME, 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= ' || NEW.clean_after_blocknum;
@@ -81,16 +81,18 @@ BEGIN
         END LOOP;
     END IF;
 
+		RAISE WARNING '[% - blocknum %] Execution of trigger took % ms', TG_NAME, NEW.blocknum, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER atomicassets_reset_log_clean_after_blocknum_tr
-AFTER INSERT ON atomicassets_reset_log
+CREATE OR REPLACE TRIGGER t_atomicassets_reset_log_clean_after_blocknum_tr
+AFTER INSERT ON t_atomicassets_reset_log
 FOR EACH ROW
-EXECUTE FUNCTION atomicassets_reset_log_clean_after_blocknum_f();
+EXECUTE FUNCTION t_atomicassets_reset_log_clean_after_blocknum_f();
 
-COMMENT ON TABLE public.atomicassets_reset_log IS 'Store reset events. Whenever an entry is added, the atomicassets_ tables is cleared after the given blocknum, see similiary named trigger';
+COMMENT ON TABLE public.t_atomicassets_reset_log IS 'Store reset events. Whenever an entry is added, the atomicassets_ tables is cleared after the given blocknum, see similiary named trigger';
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
 (

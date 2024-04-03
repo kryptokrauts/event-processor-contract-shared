@@ -499,7 +499,7 @@ EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();
 -- default tables
 ----------------------------------	
 
-CREATE TABLE IF NOT EXISTS public.atomicmarket_event_log
+CREATE TABLE IF NOT EXISTS public.t_atomicmarket_event_log
 (
 		id bigserial,
     blocknum bigint NOT NULL,
@@ -511,19 +511,19 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_log
 )
 TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_log_type
-    ON public.atomicmarket_event_log USING btree
+CREATE INDEX IF NOT EXISTS idx_t_atomicmarket_event_log_type
+    ON public.t_atomicmarket_event_log USING btree
     (type ASC NULLS LAST)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_log_type_data
-    ON public.atomicmarket_event_log USING gin
+CREATE INDEX IF NOT EXISTS idx_t_atomicmarket_event_log_type_data
+    ON public.t_atomicmarket_event_log USING gin
     (data)
     TABLESPACE pg_default;			
 
-COMMENT ON TABLE public.atomicmarket_event_log IS 'Store all raw actions';
+COMMENT ON TABLE public.t_atomicmarket_event_log IS 'Store all raw actions';
 
-CREATE TABLE IF NOT EXISTS public.atomicmarket_reset_log
+CREATE TABLE IF NOT EXISTS public.t_atomicmarket_reset_log
 (
 		id bigserial PRIMARY KEY,		
     blocknum bigint NOT NULL,
@@ -537,25 +537,25 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_reset_log
 TABLESPACE pg_default;
 
 -- trigger to clean all atomicmarket_ tables after clean_after_blocknum
-CREATE OR REPLACE FUNCTION atomicmarket_reset_log_clean_after_blocknum_f()
+CREATE OR REPLACE FUNCTION t_atomicmarket_reset_log_clean_after_blocknum_f()
 RETURNS TRIGGER AS $$
 DECLARE
     t_table_name text;
     t_schema_name text;
     dynamic_sql text;
 BEGIN
-		RAISE WARNING 'Started Execution of trigger % for blocknum %', TG_NAME, NEW.blocknum;
+		RAISE WARNING '[% - blocknum %] Started Execution of trigger', TG_NAME, NEW.blocknum;
 		
     t_schema_name := 'public';
 
     -- if clean_database is true
     IF NEW.clean_database THEN
-				RAISE WARNING 'clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
+				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
         -- build dynamic SQL to delete entries from matching tables
         FOR t_table_name IN 
             SELECT table_name
             FROM information_schema.tables
-            WHERE (table_name LIKE 'atomicmarket_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event') AND TABLE_NAME != 'atomicmarket_reset_log'
+            WHERE table_name LIKE 'atomicmarket_%' AND TABLE_TYPE = 'BASE TABLE' OR TABLE_NAME= 'soonmarket_realtime_event'
         LOOP
             dynamic_sql := 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= $1';
 						RAISE WARNING '[%] executing delete statement %', TG_NAME, 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= ' || NEW.clean_after_blocknum;
@@ -563,16 +563,18 @@ BEGIN
         END LOOP;
     END IF;
 
+		RAISE WARNING '[% - blocknum %] Execution of trigger took % ms', TG_NAME, NEW.blocknum, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER atomicmarket_reset_log_clean_after_blocknum_tr
-AFTER INSERT ON atomicmarket_reset_log
+CREATE OR REPLACE TRIGGER t_atomicmarket_reset_log_clean_after_blocknum_tr
+AFTER INSERT ON t_atomicmarket_reset_log
 FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_reset_log_clean_after_blocknum_f();
+EXECUTE FUNCTION t_atomicmarket_reset_log_clean_after_blocknum_f();
 
-COMMENT ON TABLE public.atomicmarket_reset_log IS 'Store reset events. Whenever an entry is added, the atomicmarket_ tables is cleared after the given blocknum, see similiary named trigger';
+COMMENT ON TABLE public.t_atomicmarket_reset_log IS 'Store reset events. Whenever an entry is added, the atomicmarket_ tables is cleared after the given blocknum, see similiary named trigger';
 
 ----------------------------------
 -- config tables

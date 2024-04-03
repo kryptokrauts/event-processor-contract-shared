@@ -101,10 +101,13 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
-    reporter TEXT NOT NULL,
-    reporter_comment TEXT NULL,
-		reviewer TEXT NULL,
-    reviewer_comment TEXT NULL,
+    reporter TEXT NULL,
+		reporterComment TEXT NULL,
+		reportCid TEXT NULL,
+    reviewer TEXT NOT NULL,
+		reviewer_comment TEXT,		
+		skip_basic_check BOOLEAN,
+		skip_reason TEXT,    
     PRIMARY KEY (collection_id)
 )
 TABLESPACE pg_default;
@@ -246,17 +249,17 @@ CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_gaps_v
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_promotion
 (		
-    id BIGSERIAL,
 		blocknum bigint NOT NULL,
-    block_timestamp bigint NOT NULL,
-		transfer_id BIGINT NOT NULL,
+    block_timestamp bigint NOT NULL,		
 		tx_id TEXT NOT NULL,
 		promotion_type TEXT NOT NULL,
 		promotion_object TEXT NOT NULL,
     promotion_object_id TEXT NOT NULL,
 		promotion_end_timestamp BIGINT,    
     active boolean NOT NULL,
-    PRIMARY KEY (id)
+		promoted_by TEXT,
+		global_sequence BIGINT
+    PRIMARY KEY (global_sequence)
 )
 
 TABLESPACE pg_default;
@@ -286,3 +289,58 @@ FROM (
 	WHERE edition_size != 1 AND template_id=51066
 	GROUP BY template_id,edition_size,creator) t1
 LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE active AND promotion_type='silver')t2 ON TRUE;
+
+-- reset log for promotion
+
+CREATE TABLE IF NOT EXISTS public.t_promotion_reset_log
+(
+		id bigserial PRIMARY KEY,		
+    blocknum bigint NOT NULL,
+    timestamp bigint NOT NULL,
+		context text NOT NULL,
+    reset_type text NULL,    
+    details text NULL,		
+    clean_database boolean NOT NULL,
+		clean_after_blocknum bigint NOT NULL
+)
+TABLESPACE pg_default;
+
+-- trigger to clean all atomicassets_ tables after clean_after_blocknum
+CREATE OR REPLACE FUNCTION t_promotion_reset_log_clean_after_blocknum_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    t_table_name text;
+    t_schema_name text;
+    dynamic_sql text;
+BEGIN
+		RAISE WARNING '[% - blocknum %] Started Execution of trigger', TG_NAME, NEW.blocknum;
+
+    t_schema_name := 'public';
+
+    -- if clean_database is true
+    IF NEW.clean_database THEN
+				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', TG_NAME, NEW.blocknum, NEW.clean_database,NEW.clean_after_blocknum;
+        -- build dynamic SQL to delete entries from matching tables
+        FOR t_table_name IN 
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_name = 'soonmarket_promotion'
+        LOOP
+            dynamic_sql := 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= $1';
+						RAISE WARNING '[%] executing delete statement %', TG_NAME, 'DELETE FROM ' || t_schema_name || '.' || t_table_name || ' WHERE blocknum >= ' || NEW.clean_after_blocknum;
+            EXECUTE dynamic_sql USING NEW.clean_after_blocknum;
+        END LOOP;
+    END IF;
+
+		RAISE WARNING '[% - blocknum %] Execution of trigger took % ms', TG_NAME, NEW.blocknum, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER t_promotion_reset_log_clean_after_blocknum_tr
+AFTER INSERT ON t_promotion_reset_log
+FOR EACH ROW
+EXECUTE FUNCTION t_promotion_reset_log_clean_after_blocknum_f();
+
+COMMENT ON TABLE public.t_promotion_reset_log IS 'Store reset events. Whenever an entry is added, the promotion table is cleared after the given blocknum, see similiary named trigger';
