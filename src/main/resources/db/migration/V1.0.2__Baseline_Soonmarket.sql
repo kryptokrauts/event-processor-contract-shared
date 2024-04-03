@@ -255,8 +255,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_promotion
 		promotion_type TEXT NOT NULL,
 		promotion_object TEXT NOT NULL,
     promotion_object_id TEXT NOT NULL,
-		promotion_end_timestamp BIGINT,    
-    active boolean NOT NULL,
+		promotion_end_timestamp BIGINT,
 		promoted_by TEXT,
 		global_sequence BIGINT
     PRIMARY KEY (global_sequence)
@@ -271,7 +270,14 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_promotion_poi
 
 --
 
-CREATE VIEW soonmarket_promotion_stats_v as
+CREATE OR REPLACE VIEW soonmarket_promotion_v as
+	SELECT * FROM soonmarket_promotion 
+	WHERE	promotion_end_timestamp >= floor(EXTRACT(epoch FROM now())) OR promotion_end_timestamp IS NULL;
+
+COMMENT ON VIEW public.soonmarket_promotion_v IS 'Only active promtions filtered by promotion_end_timestamp - either has value (collection promotion) or has none while active (auction)';	
+--
+
+CREATE OR REPLACE VIEW soonmarket_promotion_stats_v as
 SELECT 
 t1.minted - t1.burned AS circulating,
 t1.burned AS used,
@@ -288,7 +294,7 @@ FROM (
 	FROM soonmarket_nft t1
 	WHERE edition_size != 1 AND template_id=51066
 	GROUP BY template_id,edition_size,creator) t1
-LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE active AND promotion_type='silver')t2 ON TRUE;
+LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE promotion_type='silver' AND promotion_end_timestamp >= floor(EXTRACT(epoch FROM now())))t2 ON TRUE;
 
 -- reset log for promotion
 
