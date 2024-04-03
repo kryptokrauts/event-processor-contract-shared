@@ -550,7 +550,7 @@ BEGIN
 
     -- if clean_database is true
     IF NEW.clean_database THEN
-				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
+				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', TG_NAME, NEW.blocknum, NEW.clean_database,NEW.clean_after_blocknum;
         -- build dynamic SQL to delete entries from matching tables
         FOR t_table_name IN 
             SELECT table_name

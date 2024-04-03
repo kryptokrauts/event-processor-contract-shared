@@ -2,7 +2,7 @@
 -- default tables
 ----------------------------------	
 
-CREATE TABLE IF NOT EXISTS public.t_soonmarket_processor_sync_state
+CREATE TABLE IF NOT EXISTS public.t_node_processor_sync_state
 (
     timestamp bigint NOT NULL,
     processor text PRIMARY KEY,
@@ -68,7 +68,7 @@ BEGIN
 
     -- if clean_database is true
     IF NEW.clean_database THEN
-				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', NEW.clean_database,NEW.clean_after_blocknum;
+				RAISE WARNING '[% - blocknum %] Clean_database set to %, deleting entries after blocknum %', TG_NAME, NEW.blocknum, NEW.clean_database,NEW.clean_after_blocknum;
         -- build dynamic SQL to delete entries from matching tables
         FOR t_table_name IN 
             SELECT table_name
@@ -819,7 +819,7 @@ FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('schema_id','collection_id')
 -- Trigger update time measurement
 ---------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION soonmarket_processor_sync_state_timeleft_f()
+CREATE OR REPLACE FUNCTION t_node_processor_sync_state_timeleft_f()
 RETURNS TRIGGER AS $$
 
 BEGIN 
@@ -832,10 +832,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER soonmarket_processor_sync_state_timeleft_tr
-BEFORE UPDATE ON public.soonmarket_processor_sync_state
+CREATE TRIGGER t_node_processor_sync_state_timeleft_tr
+BEFORE UPDATE ON public.t_node_processor_sync_state
 FOR EACH ROW 
-EXECUTE FUNCTION soonmarket_processor_sync_state_timeleft_f();
+EXECUTE FUNCTION t_node_processor_sync_state_timeleft_f();
 
 ---------------------------------------------------------
 -- Function to disable triggers
