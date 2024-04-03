@@ -36,11 +36,12 @@ GREATEST(t1.blocknum, t2.blocknum,t3.blocknum,t4.blocknum) AS blocknum_updated,
 t1.block_timestamp AS block_timestamp,                                            
 GREATEST(t1.block_timestamp, t2.block_timestamp,t3.block_timestamp,t4.block_timestamp) AS block_timestamp_updated,
 t1.collection_id,                                                                 
-CASE WHEN b1.collection_id IS NOT NULL or b2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS blacklisted,
-COALESCE(b1.block_timestamp,b2.block_timestamp) AS blacklist_date,
-COALESCE(b1.reporter_comment,b2.reporter_comment) AS blacklist_reason,
-CASE WHEN b1.reporter is not null THEN 'NFT Watch' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
-CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS shielded,
+v1.blacklisted,
+v1.blacklist_date,
+v1.blacklist_reason,
+v1.blacklist_actor,
+v1.shielded,
+v1.shielding_actor,
 t1.creator,                                                                                                                                               
 t3.royalty as collection_fee,                                                                       
 t2.category,                                                                      
@@ -62,7 +63,8 @@ LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
-LEFT JOIN soonmarket_collection_stats_mv st1 ON t1.collection_id = st1.collection_id;
+LEFT JOIN soonmarket_collection_stats_mv st1 ON t1.collection_id = st1.collection_id
+LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collection_id;
 
 ----------------------------------
 -- assets

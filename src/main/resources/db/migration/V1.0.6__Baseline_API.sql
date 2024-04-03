@@ -248,7 +248,8 @@ CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_token
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_token
 END
-WHERE NOT blacklisted AND (CASE WHEN auction_end_date IS NOT NULL THEN FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) <= t1.auction_end_date ELSE TRUE END);
+WHERE NOT blacklisted 
+AND (CASE WHEN auction_end_date IS NOT NULL THEN FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) <= t1.auction_end_date ELSE TRUE END);
 
 COMMENT ON VIEW soonmarket_nft_card_v IS 'View for NFT Cards';
 
@@ -300,14 +301,14 @@ SELECT
 	t5.collection_fee AS royalty,
 	t5.creator,
 	t6.has_kyc,
-	t5.shielded
+	t5.shielded,
+	t5.blacklisted
 FROM atomicassets_asset t1
 LEFT JOIN atomicassets_asset_owner_log t2 ON t1.asset_id=t2.asset_id AND t2.current 
 LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
 LEFT JOIN soonmarket_template_v t4 ON t1.template_id=t4.template_id
 LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id
-LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account	
-where not blacklisted
+LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account
 )
 SELECT 
 	t1.*,
@@ -527,11 +528,12 @@ DATA ->> 'socials' AS socials,
 (SELECT listing_price FROM soonmarket_listing_v sl,soonmarket_exchange_rate_latest_v er WHERE sl.collection_id=t1.collection_id AND er.token_symbol=sl.listing_token AND NOT bundle AND VALID AND STATE IS null ORDER BY (listing_price*er.usd) ASC LIMIT 1) AS floor_price,
 (SELECT token FROM soonmarket_buyoffer_open_v bo,soonmarket_exchange_rate_latest_v er WHERE bo.collection_id=t1.collection_id AND er.token_symbol=bo.token AND NOT bundle ORDER BY (price*er.usd) DESC LIMIT 1) AS top_offer_token,
 (SELECT price FROM soonmarket_buyoffer_open_v bo,soonmarket_exchange_rate_latest_v er WHERE bo.collection_id=t1.collection_id AND er.token_symbol=bo.token AND NOT bundle ORDER BY (price*er.usd) DESC LIMIT 1) AS top_offer_price,
-CASE WHEN b1.collection_id IS NOT NULL or b2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS blacklisted,
-COALESCE(b1.block_timestamp,b2.block_timestamp) AS blacklist_date,
-COALESCE(b1.reporter_comment,b2.reporter_comment) AS blacklist_reason,
-CASE WHEN b1.reporter is not null THEN 'NFT Watch' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
-CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS shielded,
+v1.blacklisted,
+v1.blacklist_date,
+v1.blacklist_reason,
+v1.blacklist_actor,
+v1.shielded,
+v1.shielding_actor,
 t2.name,                                                                          
 t2.description,
 t5.schema_id,
@@ -548,7 +550,7 @@ LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
 LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE
 LEFT JOIN soonmarket_promotion p1 ON p1.promotion_object_id = t1.collection_id AND p1.promotion_object = 'collection' AND p1.promotion_end_timestamp >= floor(EXTRACT(epoch FROM now()))
-
+LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collection_id;
 ----------------------------------
 -- Edition
 ----------------------------------
@@ -876,3 +878,110 @@ LEFT JOIN soonmarket_exchange_rate_historic_v t3
 	AND TO_CHAR(TO_TIMESTAMP(t1.sale_date / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t3.utc_date;
 
 COMMENT ON VIEW public.soonmarket_my_royalties_v IS 'View for my royalties';
+
+----------------------------------------------------------
+--insert statement to renew MyNFTs / MyProfile NFTs table
+----------------------------------------------------------
+
+INSERT INTO soonmarket_nft	
+select * from(
+WITH asset_owner AS(
+SELECT 
+	t1.blocknum,
+	t1.block_timestamp,
+	t1.asset_id, 
+	t1.template_id,
+	t1.schema_id,
+	t1.collection_id,	
+	t1.serial,
+	t4.edition_size,
+	COALESCE(t3.transferable,t4.transferable) AS transferable,	
+	COALESCE(t3.burnable,t4.burnable) AS burnable,	
+	t2.owner,
+	t2.block_timestamp AS mint_date, 
+	COALESCE(t2.block_timestamp,t1.block_timestamp) AS received_date, 			
+	COALESCE(burned,FALSE) AS burned,
+	CASE WHEN burned THEN t1.block_timestamp ELSE NULL END AS burned_date,
+	CASE WHEN burned THEN t2.owner END AS burned_by,
+	COALESCE(t3.name,t4.name) AS asset_name,
+	COALESCE(t3.media,t4.media) AS asset_media,
+	COALESCE(t3.media_type,t4.media_type) AS asset_media_type,
+	COALESCE(t3.media_preview,t4.media_preview) AS asset_media_preview, 	
+	t5.name AS collection_name,
+	t5.image AS collection_image,
+	t5.collection_fee AS royalty,
+	t5.creator,
+	t6.has_kyc,
+	t5.shielded,
+	t5.blacklisted
+FROM atomicassets_asset t1
+LEFT JOIN atomicassets_asset_owner_log t2 ON t1.asset_id=t2.asset_id AND t2.current 
+LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
+LEFT JOIN soonmarket_template_v t4 ON t1.template_id=t4.template_id
+LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id
+LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account	
+)
+SELECT 
+	t1.*,
+	t10.asset_id is not null as has_offers,
+	t9.price as last_sold_for_price,
+  t9.token as last_sold_for_token,
+	t9.price * t11.usd as last_sold_for_price_usd,
+	t9.price * t9.royalty * t11.usd as last_sold_for_royalty_usd,
+	t9.price * (t9.maker_market_fee+t9.taker_market_fee) * t11.usd as last_sold_for_market_fee_usd,
+COALESCE (t9.bundle,false) as last_sold_for_bundle,
+	t7.auction_id,
+	t7.auction_end AS auction_end_date,
+	t7.token as auction_token,
+	t7.starting_price as auction_starting_bid,
+	t7.current_bid as auction_current_bid,
+	t7.collection_fee AS auction_royalty,	
+	t7.num_bids,
+	t7.seller AS auction_seller,
+	COALESCE(t7.bundle,t8.bundle,false) AS bundle,
+	COALESCE(t7.bundle_size,t8.bundle_size,null) AS bundle_size,		
+	t8.listing_id,
+	t8.listing_date,
+	t8.listing_token,
+	t8.listing_price,
+	t8.listing_royalty
+FROM asset_owner t1
+left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
+left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id and NOT t8.bundle
+LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
+LEFT JOIN soonmarket_exchange_rate_historic_v t11
+	ON t9.token=t11.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t9.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t11.utc_date
+LEFT JOIN LATERAL (select asset_id from soonmarket_buyoffer_open_v where t1.asset_id=asset_id limit 1)t10 ON true
+UNION
+	SELECT 
+	t1.*,
+	t10.asset_id is not null as has_offers,
+	t9.price as last_sold_for_price,
+  t9.token as last_sold_for_token,
+	t9.price * t11.usd as last_sold_for_price_usd,
+	t9.price * t9.royalty * t11.usd as last_sold_for_royalty_usd,
+	t9.price * (t9.maker_market_fee+t9.taker_market_fee) * t11.usd as last_sold_for_market_fee_usd,
+COALESCE (t9.bundle,false) as last_sold_for_bundle,
+	null,
+	null,
+	null,
+	null,
+	null,
+	null,
+	null,
+	null,
+	t8.bundle,
+	t8.bundle_size,
+	t8.listing_id,
+	t8.listing_date,
+	t8.listing_token,
+	t8.listing_price,
+	t8.listing_royalty
+FROM asset_owner t1
+inner JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id and t8.bundle=true and t8.index=1
+LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
+LEFT JOIN soonmarket_exchange_rate_historic_v t11
+	ON t9.token=t11.token_symbol 
+	AND TO_CHAR(TO_TIMESTAMP(t9.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00') = t11.utc_date
+LEFT JOIN LATERAL (select asset_id from soonmarket_buyoffer_open_v where t1.asset_id=asset_id limit 1)t10 ON true)t;
