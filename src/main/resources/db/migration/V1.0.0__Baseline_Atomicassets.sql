@@ -737,6 +737,7 @@ CREATE TABLE IF NOT EXISTS public.atomicassets_asset_owner_log
 		current boolean,
 		owner text NULL,
 		burned boolean NOT NULL default FALSE,		
+		transfer_id bigint NULL,
 		PRIMARY KEY (id)
 )
 TABLESPACE pg_default;		

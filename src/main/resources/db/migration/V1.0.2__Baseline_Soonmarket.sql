@@ -151,9 +151,9 @@ RETURNS TRIGGER AS $$
 
 BEGIN
    	IF NEW.collection_id IS NOT NULL AND NEW.reporter_comment = '__delete__' THEN
-		RAISE WARNING '[% - collection_id %] got delete command for table %, removing entry',TG_NAME,NEW.collection_id,TG_TABLE_NAME;		
-		EXECUTE format('DELETE FROM %I.%I WHERE collection_id = $1', TG_TABLE_SCHEMA, TG_TABLE_NAME) USING OLD.collection_id;
-		RETURN NULL;
+			RAISE WARNING '[% - collection_id %] got delete command for table %, removing entry',TG_NAME,NEW.collection_id,TG_TABLE_NAME;		
+			EXECUTE format('DELETE FROM %I.%I WHERE collection_id = $1', TG_TABLE_SCHEMA, TG_TABLE_NAME) USING OLD.collection_id;
+			RETURN NULL;
     END IF;
 
 	RETURN NEW;

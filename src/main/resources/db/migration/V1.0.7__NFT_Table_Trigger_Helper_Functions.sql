@@ -61,13 +61,13 @@ BEGIN
 		
 		-- update num_bundles for all assets in bundle auction / listing
 		IF _card_bundle AND _auction_id is not null THEN
-			RAISE WARNING '[% - auction_id %] card is 1of1 bundle auction, updating soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _auction_id; 
+			RAISE WARNING '[% - auction_id %] card is 1of1 bundle auction, updating soonmarket_nft_card num_bundles', 'soonmarket_nft_tables_clear_f', _auction_id; 
 			UPDATE soonmarket_nft_card 
 			SET num_bundles = CASE WHEN num_bundles > 1 THEN num_bundles -1 ELSE NULL END 
 			WHERE template_id in (SELECT template_id from soonmarket_auction_bundle_assets_v WHERE auction_id = _auction_id);
 		END IF;
 		IF _card_bundle AND _listing_id is not null THEN 
-			RAISE WARNING '[% - listing_id %] card is 1of1 bundle listing, updating soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id; 
+			RAISE WARNING '[% - listing_id %] card is 1of1 bundle listing, updating soonmarket_nft_card num_bundles', 'soonmarket_nft_tables_clear_f', _listing_id; 
 			UPDATE soonmarket_nft_card 
 			SET num_bundles = CASE WHEN num_bundles > 1 THEN num_bundles -1 ELSE NULL END 
 			WHERE template_id in (SELECT template_id from soonmarket_listing_bundle_assets_v WHERE listing_id = _listing_id);
@@ -75,28 +75,29 @@ BEGIN
 	END IF;
 	-- edition case
 	IF _card_edition_size != 1 THEN
-		-- delete auction card because there is always an single listed/unlisted card
+		-- delete auction card because there is always an additional single listed/unlisted card
 		IF _auction_id IS NOT null THEN
 			RAISE WARNING '[% - auction_id %] card is edition auction, deleting from soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _auction_id; 
 			DELETE FROM soonmarket_nft_card WHERE auction_id = _auction_id;	
 		END IF;
 
 		IF NOT _card_bundle AND _auction_id is not null THEN 
-			RAISE WARNING '[% - auction_id %] card is edition auction, updating soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _auction_id; 
+			RAISE WARNING '[% - auction_id %] card is edition auction, updating soonmarket_nft_card num_auctions', 'soonmarket_nft_tables_clear_f', _auction_id; 
 			UPDATE soonmarket_nft_card 
 			SET num_auctions = CASE WHEN num_auctions > 1 THEN num_auctions -1 ELSE NULL END 
 			WHERE template_id=_card_template_id AND edition_size != 1;
 		END IF;
 
 		IF NOT _card_bundle AND _listing_id is not null THEN 
-			RAISE WARNING '[% - listing_id %] card is edition listing, updating soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id; 
+			RAISE WARNING '[% - listing_id %] card is edition listing, updating soonmarket_nft_card num_listings', 'soonmarket_nft_tables_clear_f', _listing_id; 
 			UPDATE soonmarket_nft_card 
 			SET num_listings = CASE WHEN num_listings > 1 THEN num_listings -1 ELSE NULL END 
 			WHERE template_id=_card_template_id and edition_size != 1;
 		END IF;
 	-- 1:1 case
-	ELSE
-		RAISE WARNING '[% - listing_id %] card is 1of1 listing, updating soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id; 
+	END IF;
+	IF _card_edition_size = 1 OR (_card_edition_size != 1 AND NOT _card_bundle AND _listing_id IS NOT NULL) THEN
+		RAISE WARNING '[% - listing_id %, auction_id %] card is either 1of1 auction/listing or edition listing, cleaning soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id,_auction_id; 
 		EXECUTE '
 		UPDATE soonmarket_nft_card SET 
 		auction_id = null,
@@ -407,3 +408,53 @@ $$ LANGUAGE plpgsql;
 
 COMMENT ON FUNCTION soonmarket_tables_remove_invalid_bundle_listings_f
     IS 'Clear all listings, update num_bundles and remove all bundle cards, which have an open listing containing the given invalid asset_id';
+
+----------------------------------------------------------------------------------------------------------------------------------------
+-- When creating new market actions, racing conditions can occur, because entries of *action and *action_asset are needed
+-- Therefore we utilize a separate table, to track a dataset which signals that both entries are persisted
+-- Transactional behaviour ensures, that the entry inidicating dataset completion represents the actual state
+----------------------------------------------------------------------------------------------------------------------------------------
+
+CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card_log
+(		
+		blocknum BIGINT NOT NULL,
+    block_timestamp BIGINT NOT NULL,     
+		id BIGINT,
+    type TEXT,
+		completion_count INT,
+		insert_count INT,
+		processed boolean DEFAULT FALSE,
+		PRIMARY KEY (id,type)
+)
+TABLESPACE pg_default;
+
+COMMENT ON COLUMN public.soonmarket_nft_card_log.completion_count IS 'Number of entries in different tables needed for a complete dataset. If the threshold is reached (i.e. auction needs auction and auction_asset entries) the actual trigger updating cards can be fired, see triggers on this table';
+COMMENT ON COLUMN public.soonmarket_nft_card_log.insert_count IS 'Number of entries inserted. If this value becomes equal to completion_count, the actual trigger updating cards can be fired, see triggers on this table';
+
+----------------------------------------------
+-- Insert entry into soonmarket_nft_card_log
+----------------------------------------------
+
+CREATE OR REPLACE FUNCTION soonmarket_nft_card_log_update_f(_blocknum bigint, _block_timestamp bigint, _id bigint, _type text, _completion_count int)
+RETURNS void AS $$
+DECLARE
+	_delete_count int;
+BEGIN
+
+	RAISE WARNING '[%] Started execution of function with params % % % at %', 'soonmarket_nft_card_log_update_f', _id, _type, _completion_count, clock_timestamp();
+	
+	INSERT INTO t_soonmarket_nft_card_log (blocknum, block_timestamp, id, type, completion_count, insert_count)
+	VALUES
+    (_blocknum, _block_timestamp, _id, _type, _completion_count, 1)
+	ON CONFLICT (id, type) DO UPDATE
+	SET 
+		insert_count = t_soonmarket_nft_card_log.insert_count + 1,
+		blocknum = excluded.blocknum,
+		block_timestamp = excluded.block_timestamp,
+		completion_count = COALESCE(excluded.completion_count, t_soonmarket_nft_card_log.completion_count);
+
+	RAISE WARNING '[%] Execution of function took % ms', 'soonmarket_nft_card_log_update_f', (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+END;
+
+$$ LANGUAGE plpgsql;
