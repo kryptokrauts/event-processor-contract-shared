@@ -81,6 +81,21 @@ TABLESPACE pg_default;
 
 -- 
 
+CREATE TABLE IF NOT EXISTS public.t_audit_reset_log
+(
+		id bigserial PRIMARY KEY,		
+    blocknum bigint NOT NULL,
+    timestamp bigint NOT NULL,
+		context text NOT NULL,
+    reset_type text NULL,    
+    details text NULL,		
+    clean_database boolean NOT NULL,
+		clean_after_blocknum bigint NOT NULL
+)
+TABLESPACE pg_default;
+
+--
+
 CREATE TABLE IF NOT EXISTS public.nft_watch_blacklist
 (
     blocknum bigint NOT NULL,
@@ -128,6 +143,40 @@ LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id;
+
+-- Trigger function for deleting entries from blacklist / shielding
+
+CREATE OR REPLACE FUNCTION audit_delete_on_update_collection_id_f()
+RETURNS TRIGGER AS $$
+
+BEGIN
+   	IF NEW.collection_id IS NOT NULL AND NEW.reporter_comment = '__delete__' THEN
+		RAISE WARNING '[% - collection_id %] got delete command for table %, removing entry',TG_NAME,NEW.collection_id,TG_TABLE_NAME;		
+		EXECUTE format('DELETE FROM %I.%I WHERE collection_id = $1', TG_TABLE_SCHEMA, TG_TABLE_NAME) USING OLD.collection_id;
+		RETURN NULL;
+    END IF;
+
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger definitions
+
+CREATE OR REPLACE TRIGGER nft_watch_shielding_update_collection_id_tr
+BEFORE UPDATE ON public.nft_watch_shielding
+FOR EACH ROW EXECUTE FUNCTION audit_delete_on_update_collection_id_f();
+
+CREATE OR REPLACE TRIGGER nft_watch_blacklist_update_collection_id_tr
+BEFORE UPDATE ON public.nft_watch_blacklist
+FOR EACH ROW EXECUTE FUNCTION audit_delete_on_update_collection_id_f();
+
+CREATE OR REPLACE TRIGGER soonmarket_internal_shielding_update_collection_id_tr
+BEFORE UPDATE ON public.soonmarket_internal_shielding
+FOR EACH ROW EXECUTE FUNCTION audit_delete_on_update_collection_id_f();
+
+CREATE OR REPLACE TRIGGER soonmarket_internal_blacklist_update_collection_id_tr
+BEFORE UPDATE ON public.soonmarket_internal_blacklist
+FOR EACH ROW EXECUTE FUNCTION audit_delete_on_update_collection_id_f();
 
 ----------------------------------
 -- internal services tables
