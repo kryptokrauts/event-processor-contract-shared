@@ -421,7 +421,7 @@ COMMENT ON FUNCTION soonmarket_tables_remove_invalid_bundle_listings_f
 -- Transactional behaviour ensures, that the entry inidicating dataset completion represents the actual state
 ----------------------------------------------------------------------------------------------------------------------------------------
 
-CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card_log
+CREATE TABLE IF NOT EXISTS public.t_soonmarket_nft_card_log
 (		
 		blocknum BIGINT NOT NULL,
     block_timestamp BIGINT NOT NULL,     
@@ -434,8 +434,8 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card_log
 )
 TABLESPACE pg_default;
 
-COMMENT ON COLUMN public.soonmarket_nft_card_log.completion_count IS 'Number of entries in different tables needed for a complete dataset. If the threshold is reached (i.e. auction needs auction and auction_asset entries) the actual trigger updating cards can be fired, see triggers on this table';
-COMMENT ON COLUMN public.soonmarket_nft_card_log.insert_count IS 'Number of entries inserted. If this value becomes equal to completion_count, the actual trigger updating cards can be fired, see triggers on this table';
+COMMENT ON COLUMN public.t_soonmarket_nft_card_log.completion_count IS 'Number of entries in different tables needed for a complete dataset. If the threshold is reached (i.e. auction needs auction and auction_asset entries) the actual trigger updating cards can be fired, see triggers on this table';
+COMMENT ON COLUMN public.t_soonmarket_nft_card_log.insert_count IS 'Number of entries inserted. If this value becomes equal to completion_count, the actual trigger updating cards can be fired, see triggers on this table';
 
 ----------------------------------------------
 -- Insert entry into soonmarket_nft_card_log
