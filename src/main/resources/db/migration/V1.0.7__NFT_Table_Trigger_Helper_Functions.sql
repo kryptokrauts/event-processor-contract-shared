@@ -33,25 +33,32 @@ BEGIN
 
 	RAISE WARNING '[%] resolved params from card: asset_id: %, template_id: %, editionSize: %', 'soonmarket_nft_tables_clear_f', _card_asset_id, _card_template_id, _card_edition_size;
 	
--- soonmarket_nft: clear auction and listing reference
-	EXECUTE '
-	UPDATE soonmarket_nft SET 
-		auction_id = null,
-		auction_token = null,		
-		auction_starting_bid = null,		
-		auction_current_bid = null,
-		auction_end_date = null,
-		auction_royalty = null,
-		auction_seller = null,
-		listing_id = null,
-		listing_token = null,
-		listing_price = null,
-		listing_date = null,
-		listing_royalty = null,
-		bundle = false,
-		bundle_size = null,
-		num_bids = null
-		WHERE ' || _dynamic_where;
+
+	IF (_card_bundle AND _auction_id IS NULL) THEN
+		RAISE WARNING '[%] is bundle listing, deleting soonmarket_nft entry for auction_id % or listing_id %', 'soonmarket_nft_tables_clear_f', _auction_id, _listing_id;
+		EXECUTE 'DELETE FROM soonmarket_nft WHERE '||_dynamic_where||' and bundle';
+	ELSE
+-- soonmarket_nft: clear auction and listing reference	
+		RAISE WARNING '[%] listing/auction is not a bundle, clearing soonmarket_nft entry for auction_id % or listing_id %', 'soonmarket_nft_tables_clear_f', _auction_id, _listing_id;
+		EXECUTE '
+		UPDATE soonmarket_nft SET 
+			auction_id = null,
+			auction_token = null,		
+			auction_starting_bid = null,		
+			auction_current_bid = null,
+			auction_end_date = null,
+			auction_royalty = null,
+			auction_seller = null,
+			listing_id = null,
+			listing_token = null,
+			listing_price = null,
+			listing_date = null,
+			listing_royalty = null,
+			bundle = false,
+			bundle_size = null,
+			num_bids = null
+			WHERE ' || _dynamic_where;
+	END IF;
 	
 -- soonmarket_nft_card table
 	-- bundle case - delete bundle auction/listing
@@ -96,8 +103,8 @@ BEGIN
 		END IF;
 	-- 1:1 case
 	END IF;
-	IF _card_edition_size = 1 OR (_card_edition_size != 1 AND NOT _card_bundle AND _listing_id IS NOT NULL) THEN
-		RAISE WARNING '[% - listing_id %, auction_id %] card is either 1of1 auction/listing or edition listing, cleaning soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id,_auction_id; 
+	IF _card_edition_size = 1 AND NOT _card_bundle THEN
+		RAISE WARNING '[% - listing_id %, auction_id %] card is 1of1 auction/listing, cleaning soonmarket_nft_card', 'soonmarket_nft_tables_clear_f', _listing_id,_auction_id; 
 		EXECUTE '
 		UPDATE soonmarket_nft_card SET 
 		auction_id = null,
@@ -254,8 +261,7 @@ BEGIN
 	WHERE 
 		edition_size != 1
 		AND template_id = _template_id 
-		AND NOT burned
-		AND asset_id NOT IN (select asset_id FROM soonmarket_edition_listings_v WHERE template_id = _template_id)
+		AND NOT burned		
 		AND asset_id NOT IN (select asset_id FROM soonmarket_edition_auctions_v WHERE template_id = _template_id);
 
 -- if there is a min_edition_serial, change serial of unlisted card to lowest available

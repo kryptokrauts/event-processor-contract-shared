@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_blacklist
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
-    reporter TEXT NOT NULL,
+    reporter TEXT NULL,
     reporter_comment TEXT NULL,
     reviewer TEXT NULL,
     reviewer_comment TEXT NULL,

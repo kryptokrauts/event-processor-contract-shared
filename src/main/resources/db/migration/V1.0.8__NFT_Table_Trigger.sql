@@ -1,77 +1,102 @@
----------------------------------------------------------------
--- Trigger for transfer
----------------------------------------------------------------
+	---------------------------------------------------------------
+	-- Trigger for transfer
+	---------------------------------------------------------------
 
-CREATE OR REPLACE FUNCTION soonmarket_nft_tables_transfer_f()
-RETURNS TRIGGER AS $$
-DECLARE
-    _card_asset_id bigint;
-	_card_template_id bigint;
-	_card_edition_size bigint;	
-	_listing_id_rec RECORD;
-	_deleted_listings RECORD;
-BEGIN  
-		RAISE WARNING '[% - transfer_id %] Started execution of trigger', TG_NAME, NEW.id;
+	CREATE OR REPLACE FUNCTION soonmarket_nft_tables_transfer_f()
+	RETURNS TRIGGER AS $$
+	DECLARE
+			_card_asset_id bigint;
+		_card_template_id bigint;
+		_card_edition_size bigint;	
+		_listing_id_rec RECORD;
+		_deleted_listings RECORD;
+		_deleted_listing_assets RECORD;
+	BEGIN  
+			RAISE WARNING '[% - transfer_id %] Started execution of trigger', TG_NAME, NEW.id;
 
-	-- get all assets from the transfer, check if they are part of a now invalid listing and clear the tables in that case   
-    FOR _listing_id_rec IN 
-		SELECT DISTINCT sale_id as listing_id FROM 
+		-- get all assets from the transfer, check if they are part of a now invalid listing and clear the tables in that case   
+			FOR _listing_id_rec IN 
+			SELECT DISTINCT sale_id as listing_id FROM 
+			(
+				SELECT 
+					t3.sale_id,
+					-- listing gets invalid when new owner (=receiver) is not the seller t
+					BOOL_AND(COALESCE(t2.seller = t1.receiver,FALSE)) AS VALID
+				FROM atomicassets_transfer t1
+				INNER JOIN atomicassets_transfer_asset t5 ON t5.transfer_id=NEW.id
+				INNER JOIN atomicmarket_sale_asset t3 ON t3.asset_id=t5.asset_id and t5.transfer_id=NEW.id	
+				INNER JOIN atomicmarket_sale t2 ON t2.sale_id = t3.sale_id						
+				WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 WHERE t3.sale_id=t2.sale_id)	
+				AND t1.transfer_id=NEW.id
+				GROUP by t3.sale_id	
+			)
+			WHERE NOT VALID
+			LOOP
+					RAISE WARNING '[% - transfer_id %] listing with id % got invalid through transfer, cleaning nft tables', TG_NAME, NEW.id, _listing_id_rec.listing_id;
+					PERFORM soonmarket_nft_tables_clear_f(null, _listing_id_rec.listing_id);
+					-- update listing / unlisted cards for given template_id
+					RAISE WARNING '[% - transfer_id %] updating cards', TG_NAME, NEW.id;
+					PERFORM 
+						soonmarket_tables_update_listed_card_f(template_id),
+						soonmarket_tables_update_unlisted_card_f(template_id)
+					FROM(
+						SELECT DISTINCT template_id
+						FROM soonmarket_listing_v WHERE listing_id=_listing_id_rec.listing_id)t;
+			END LOOP;
+
+		
+		-- in case listing gets valid again	
+		-- remove listing assets and listings first
+		FOR _listing_id_rec IN
 		(
-			SELECT 
-				t3.sale_id,
-				-- listing gets invalid when newOwner (=receiver) is not the seller t
-				BOOL_AND(COALESCE(t2.seller = t1.receiver,FALSE)) AS VALID
-			FROM atomicassets_transfer t1
-			INNER JOIN atomicassets_transfer_asset t5 ON t5.transfer_id=NEW.id
-			INNER JOIN atomicmarket_sale_asset t3 ON t3.asset_id=t5.asset_id and t5.transfer_id=NEW.id	
-			INNER JOIN atomicmarket_sale t2 ON t2.sale_id = t3.sale_id						
-			WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 WHERE t3.sale_id=t2.sale_id)	
-			AND t1.transfer_id=NEW.id
-			GROUP by t3.sale_id	
-		)
-    WHERE NOT VALID
-    LOOP
-				RAISE WARNING '[% - transfer_id %] listing with id % got invalid through transfer, cleaning nft tables', TG_NAME, NEW.id, _listing_id_rec.listing_id;
-        PERFORM soonmarket_nft_tables_clear_f(null, _listing_id_rec.listing_id);
-				-- update listing / unlisted cards for given template_id
-				RAISE WARNING '[% - transfer_id %] updating cards', TG_NAME, NEW.id;
-				PERFORM 
-					soonmarket_tables_update_listed_card_f(template_id),
-					soonmarket_tables_update_unlisted_card_f(template_id)
-				FROM(
-					SELECT DISTINCT template_id
-	 				FROM soonmarket_listing_v WHERE listing_id=_listing_id_rec.listing_id)t;
-    END LOOP;
-
-	
-	-- in case listing gets valid again	
-	WITH valid_listings AS (
-			SELECT DISTINCT listing_id 
+			SELECT DISTINCT listing_id
 			FROM soonmarket_listing_valid_v 
 			WHERE asset_id IN (SELECT asset_id FROM atomicassets_transfer_asset WHERE transfer_id = NEW.id)
-	)	
-	DELETE FROM atomicmarket_sale
-	WHERE sale_id IN (SELECT listing_id FROM valid_listings)
-	RETURNING * INTO _deleted_listings;
-	
-	-- for every valid listing that is not in soonmarket_nft, add listing by "simulating" a new listing
-	IF _deleted_listings IS NOT NULL THEN
-		INSERT INTO atomicmarket_sale SELECT * FROM _deleted_listings;
-		RAISE WARNING '[% - transfer_id %] % invalid listings got valid again', TG_NAME, NEW.id, (SELECT COUNT(*) FROM _deleted_listings);
-	END IF;
+		)
+		LOOP
 
-	-- TODO: do the same for buyoffers
+			-- Backup and delete the rows from atomicmarket_sale
+			CREATE TEMP TABLE temp_deleted_listings AS
+			    SELECT * FROM atomicmarket_sale
+			    WHERE sale_id = _listing_id_rec.listing_id;			
 			
-	RAISE WARNING '[% - transfer_id %] Execution of trigger took % ms', TG_NAME, NEW.id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+			DELETE FROM atomicmarket_sale WHERE sale_id = _listing_id_rec.listing_id;
+			RAISE WARNING '[% - transfer_id %] deleted atomicmarket_sale(s) entries for listing %', TG_NAME, NEW.id, _listing_id_rec.listing_id;		
 
--- update soonmarket_nft_card_log
-	UPDATE t_soonmarket_nft_card_log
-	SET processed = TRUE
-	WHERE type = 'transfer' and id = NEW.id and processed = false;
+			-- Backup and delete the rows from atomicmarket_sale_asset
+			CREATE TEMP TABLE temp_deleted_listing_assets AS
+			    SELECT * FROM atomicmarket_sale_asset
+			    WHERE sale_id = _listing_id_rec.listing_id;
+			
+			-- Delete the rows from atomicmarket_sale_asset
+			DELETE FROM atomicmarket_sale_asset	WHERE sale_id = _listing_id_rec.listing_id;
+			RAISE WARNING '[% - transfer_id %] deleted atomicmarket_sale_asset(s) entries for listing %', TG_NAME, NEW.id, _listing_id_rec.listing_id;
+			
+			-- for add listing "simulate" a new listing by inserting the old dataset again
+			
+			IF (SELECT COUNT(*) FROM temp_deleted_listings) > 0 THEN
+				RAISE WARNING '[% - transfer_id %] % invalid listings got valid again', TG_NAME, NEW.id, _listing_id_rec.listing_id;
+				DELETE FROM t_soonmarket_nft_card_log WHERE type='sale' AND id=_listing_id_rec.listing_id AND processed=true;
+				INSERT INTO atomicmarket_sale SELECT * FROM temp_deleted_listings;		
+				INSERT INTO atomicmarket_sale_asset SELECT * FROM temp_deleted_listing_assets;				
+			END IF;
 
-	RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+			DROP TABLE temp_deleted_listings;
+			DROP TABLE temp_deleted_listing_assets;
+		
+		END LOOP;
+
+		-- TODO: do the same for buyoffers
+				
+		RAISE WARNING '[% - transfer_id %] Execution of trigger took % ms', TG_NAME, NEW.id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+		-- update soonmarket_nft_card_log to mark transfer as processed
+		UPDATE t_soonmarket_nft_card_log SET processed = TRUE	WHERE type = 'transfer' and id = NEW.id and processed = false;
+
+		RETURN NEW;
+
+	END;
+	$$ LANGUAGE plpgsql;
 
 -- card log insert helper function
 CREATE OR REPLACE FUNCTION public.soonmarket_transfer_notify_data_available_f()
@@ -615,9 +640,9 @@ BEGIN
 	RAISE WARNING '[% - listing_id %] Execution of trigger started at %', TG_NAME, NEW.id, clock_timestamp();
 
 	SELECT 
-		blocknum, block_timestamp, block_timestamp, token, price, collection_fee, bundle, bundle_size, seller, primary_asset_id
+		blocknum, block_timestamp, primary_asset_id, block_timestamp, token, price, collection_fee, bundle, bundle_size, seller
 	INTO 
-		_blocknum, _block_timestamp, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size, _listing_seller, _primary_asset_id
+		_blocknum, _block_timestamp, _primary_asset_id, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size, _listing_seller
 	FROM atomicmarket_sale
 	WHERE sale_id = NEW.id;
 
@@ -627,8 +652,8 @@ BEGIN
 		SELECT * INTO _id FROM copy_row_f((SELECT template_id FROM soonmarket_asset_base_v WHERE asset_id = _primary_asset_id),'soonmarket_nft');
 
 		UPDATE soonmarket_nft
-		SET (blocknum, block_timestamp, listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
-			(_blocknum, _block_timestamp, NEW.id, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size)
+		SET (blocknum, block_timestamp, asset_id, listing_id, listing_date, listing_token, listing_price, listing_royalty, bundle, bundle_size) =
+			(_blocknum, _block_timestamp, _primary_asset_id, NEW.id, _listing_date, _listing_token, _listing_price, _listing_royalty, _bundle, _bundle_size)
 		WHERE id = _id;
 	
 	ELSE
