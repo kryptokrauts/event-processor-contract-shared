@@ -530,30 +530,23 @@ CREATE OR REPLACE FUNCTION soonmarket_nft_tables_mint_f()
 RETURNS TRIGGER AS $$
 DECLARE
 	_edition_size int;
-	_wait_lock boolean;
+	_serial int;
+	_template_id bigint;
+	_asset_id bigint;
 BEGIN
+	RAISE WARNING '[% - asset_id/template_id % type %] Started Execution of trigger', TG_NAME, NEW.id, NEW.type;
 
-	RAISE WARNING '[% - asset_id %] Started Execution of trigger', TG_NAME, NEW.asset_id;
-
-	_wait_lock = false;
-
-	-- validate that all data is present
-	-- in case no template exists those data must be present
-	IF TG_TABLE_NAME = 'atomicassets_asset' THEN 
-		IF NEW.template_id IS NULL THEN _wait_lock = true; END IF;
+	-- if minting asset = 1of1 or edition NFT with serial > 1 the reference id is the asset_id
+	IF NEW.type in ('mint_asset','mint_template') THEN
+		SELECT edition_size,serial,template_id, asset_id INTO _edition_size,_serial,_template_id,_asset_id 
+		FROM soonmarket_asset_base_v WHERE asset_id = NEW.id;
 	ELSE 
-		IF TG_TABLE_NAME = 'atomicassets_asset_data' THEN _wait_lock = true; END IF;
-	END IF; 
-
-	IF _wait_lock AND
-		((SELECT COUNT(*) FROM atomicassets_asset WHERE asset_id = NEW.asset_id ) = 0 OR
-		(SELECT COUNT(*) FROM atomicassets_asset_data WHERE asset_id = NEW.asset_id ) = 0 )
-		THEN
-			RAISE WARNING '[% - asset_id %] Necessary data to update soonmarket_nft* tables for minting of asset is not present', TG_NAME, NEW.asset_id;
-		RETURN NEW;		
+	-- otherwise it is the first NFT of the template
+		SELECT max(edition_size),max(serial),max(template_id), max(asset_id) INTO _edition_size,_serial,_template_id,_asset_id 
+		FROM soonmarket_asset_base_v WHERE template_id = NEW.id;
 	END IF;
 
-	RAISE WARNING '[% - asset_id %] inserting new entry into soonmarket_nft', TG_NAME, NEW.asset_id;
+	RAISE WARNING '[% - asset_id %] inserting new entry into soonmarket_nft', TG_NAME, _asset_id;
 -- soonmarket_nft: create new entry if not blacklisted
 	INSERT INTO soonmarket_nft
 	(blocknum, block_timestamp, asset_id, template_id, schema_id, collection_id, 
@@ -567,50 +560,103 @@ BEGIN
 	 collection_name, collection_image, royalty, creator, t2.has_kyc, shielded, false
 	 FROM soonmarket_asset_v t1
 	 LEFT JOIN soonmarket_profile t2 ON t1.creator=t2.account
-	 WHERE asset_id = NEW.asset_id;
-	
-	SELECT edition_size INTO _edition_size FROM soonmarket_asset_base_v WHERE asset_id = NEW.asset_id;
-		
-	CASE 
+	 WHERE asset_id = _asset_id;	
+		 
 		-- serial = 1 means no card exists -> create a new card
-		WHEN NEW.serial = 1 THEN
-			RAISE WARNING '[% - asset_id %] asset has serial 1, inserting new entry into soonmarket_nft_card', TG_NAME, NEW.asset_id;
-			INSERT INTO soonmarket_nft_card
-			(blocknum, block_timestamp, asset_id, template_id, schema_id, collection_id, 
-			 serial, edition_size, transferable, burnable, owner, mint_date, 
-			 asset_name, asset_media, asset_media_type, asset_media_preview, 
-			 collection_name, collection_image, royalty, creator, has_kyc, shielded,
-			 _card_state, _card_quick_action, display, blacklisted)	
-			 SELECT
-			 t1.blocknum, t1.block_timestamp, asset_id, template_id, schema_id, collection_id, 
-			 serial, edition_size, transferable, burnable, t1.receiver, t1.block_timestamp, 
-			 asset_name, asset_media, asset_media_type, asset_media_preview, 
-			 collection_name, collection_image, royalty, creator, t2.has_kyc, shielded,
-			 CASE WHEN _edition_size != 1 THEN 'edition' ELSE 'single' END,
-			 'quick_offer', true, false
-			 FROM soonmarket_asset_v t1
-			 LEFT JOIN soonmarket_profile t2 ON t1.creator=t2.account
-			 WHERE asset_id = NEW.asset_id AND NOT blacklisted;
-		-- serial > 1 means means a new NFT of an existing edition is minted - check if unlisted card display needs to be updated
-		WHEN NEW.serial > 1 AND NEW.template_id IS NOT null THEN			
-			RAISE WARNING '[% - asset_id %] asset has serial > 1, updating card entry in soonmarket_nft_card', TG_NAME, NEW.asset_id;
-			EXECUTE soonmarket_tables_update_unlisted_card_f(NEW.template_id);
-	END CASE;
+	IF _serial = 1 THEN
+	RAISE WARNING '[% - asset_id %] asset has serial 1, inserting new entry into soonmarket_nft_card', TG_NAME, _asset_id;
+	INSERT INTO soonmarket_nft_card
+	(blocknum, block_timestamp, asset_id, template_id, schema_id, collection_id, 
+		serial, edition_size, transferable, burnable, owner, mint_date, 
+		asset_name, asset_media, asset_media_type, asset_media_preview, 
+		collection_name, collection_image, royalty, creator, has_kyc, shielded,
+		_card_state, _card_quick_action, display, blacklisted)	
+		SELECT
+		t1.blocknum, t1.block_timestamp, asset_id, template_id, schema_id, collection_id, 
+		serial, edition_size, transferable, burnable, t1.receiver, t1.block_timestamp, 
+		asset_name, asset_media, asset_media_type, asset_media_preview, 
+		collection_name, collection_image, royalty, creator, t2.has_kyc, shielded,
+		CASE WHEN _edition_size != 1 THEN 'edition' ELSE 'single' END,
+		'quick_offer', true, false
+		FROM soonmarket_asset_v t1
+		LEFT JOIN soonmarket_profile t2 ON t1.creator=t2.account
+		WHERE asset_id = _asset_id AND NOT blacklisted;
+	END IF;
+	-- serial > 1 means means a new NFT of an existing edition is minted - check if unlisted card display needs to be updated
+	IF _serial > 1 AND _template_id IS NOT null THEN			
+		RAISE WARNING '[% - asset_id %] asset has serial > 1, updating card entry in soonmarket_nft_card', TG_NAME, _asset_id;
+		EXECUTE soonmarket_tables_update_unlisted_card_f(_template_id);
+	END IF;
 
-	RAISE WARNING '[% - asset_id %] Execution of trigger took % ms', TG_NAME, NEW.asset_id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+-- update soonmarket_nft_card_log to mark transfer as processed
+	UPDATE t_soonmarket_nft_card_log SET processed = TRUE	WHERE type = NEW.type and id = NEW.id and processed = false;
+
+	RAISE WARNING '[% - asset_id %] Execution of trigger took % ms', TG_NAME, _asset_id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
 	
 	RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- card log insert helper function
+CREATE OR REPLACE FUNCTION public.soonmarket_mint_notify_data_available_f()
+    RETURNS trigger
+    LANGUAGE 'plpgsql'
+AS $BODY$
+	DECLARE		 
+		_completion_count_edition int;
+		_mint_type text;
+		_ref_id bigint;
+	BEGIN 
+	-- completion count = 1(base entry) + either template or asset_data (when 1of1 without template)
+		IF TG_TABLE_NAME = 'atomicassets_asset' THEN 									
+			-- template check if it is the first mint - if yes we need template and asset entry otherwise we just need the asset entry
+			-- this needs to be distinguished because the reference id is in the second case then the asset_id rather than the template_id
+			IF NEW.template_id IS NOT NULL THEN				
+				SELECT 				
+				CASE WHEN serial=1 THEN 2 ELSE 1 END,
+				CASE WHEN serial=1 THEN 'mint_template_first_serial' ELSE 'mint_template' END,
+				CASE WHEN serial=1 THEN NEW.template_id ELSE NEW.asset_id END
+				INTO 
+				_completion_count_edition, _mint_type, _ref_id
+			FROM atomicassets_asset WHERE asset_id=NEW.asset_id;
+				PERFORM soonmarket_nft_card_log_update_f(NEW.blocknum, NEW.block_timestamp, _ref_id, _mint_type, _completion_count_edition);
+			ELSE
+				PERFORM soonmarket_nft_card_log_update_f(NEW.blocknum, NEW.block_timestamp, NEW.asset_id, 'mint_asset', 2);
+			END IF;
+		ELSE
+			IF TG_TABLE_NAME = 'atomicassets_template' THEN
+				PERFORM soonmarket_nft_card_log_update_f(NEW.blocknum, NEW.block_timestamp, NEW.template_id, 'mint_template_first_serial', null);
+			ELSE
+				PERFORM soonmarket_nft_card_log_update_f(NEW.blocknum, NEW.block_timestamp, NEW.asset_id, 'mint_asset', null);
+			END IF;
+		END IF;
+		RETURN NEW;
+	END;
+$BODY$;
+
+-- actual trigger - we only need it for the first asset
+
 CREATE OR REPLACE TRIGGER soonmarket_nft_tables_mint_tr
 AFTER INSERT ON public.atomicassets_asset
-FOR EACH ROW 
-EXECUTE FUNCTION soonmarket_nft_tables_mint_f();
+FOR EACH ROW
+EXECUTE FUNCTION soonmarket_mint_notify_data_available_f();
 
 CREATE OR REPLACE TRIGGER soonmarket_nft_tables_asset_data_mint_tr
 AFTER INSERT ON public.atomicassets_asset_data
 FOR EACH ROW 
+EXECUTE FUNCTION soonmarket_mint_notify_data_available_f();
+
+CREATE OR REPLACE TRIGGER soonmarket_nft_tables_template_mint_tr
+AFTER INSERT ON public.atomicassets_template
+FOR EACH ROW 
+EXECUTE FUNCTION soonmarket_mint_notify_data_available_f();
+
+-- trigger transfer creation after insert count is equal to completion count
+
+CREATE OR REPLACE TRIGGER soonmarket_nft_tables_mint_created_tr
+AFTER INSERT OR UPDATE ON public.t_soonmarket_nft_card_log
+FOR EACH ROW 
+WHEN (NEW.type in('mint_template','mint_template_first_serial','mint_asset') AND NEW.completion_count = NEW.insert_count AND NEW.processed = false)
 EXECUTE FUNCTION soonmarket_nft_tables_mint_f();
 
 ---------------------------------------------------------

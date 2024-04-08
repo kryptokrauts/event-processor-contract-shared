@@ -449,9 +449,9 @@ BEGIN
 
 	RAISE WARNING '[%] Started execution of function with params % % % at %', 'soonmarket_nft_card_log_update_f', _id, _type, _completion_count, clock_timestamp();
 	
-	INSERT INTO t_soonmarket_nft_card_log (blocknum, block_timestamp, id, type, completion_count, insert_count)
+	INSERT INTO t_soonmarket_nft_card_log (blocknum, block_timestamp, id, type, completion_count, insert_count, processed)
 	VALUES
-    (_blocknum, _block_timestamp, _id, _type, _completion_count, 1)
+    (_blocknum, _block_timestamp, _id, _type, _completion_count, 1, false)
 	ON CONFLICT (id, type) DO UPDATE
 	SET 
 		insert_count = t_soonmarket_nft_card_log.insert_count + 1,
