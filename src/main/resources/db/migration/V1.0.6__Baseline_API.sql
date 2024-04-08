@@ -880,7 +880,30 @@ LEFT JOIN soonmarket_exchange_rate_historic_v t3
 COMMENT ON VIEW public.soonmarket_my_royalties_v IS 'View for my royalties';
 
 ----------------------------------------------------------
---insert statement to renew MyNFTs / MyProfile NFTs table
+-- promotion stats view
+----------------------------------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_promotion_stats_v as
+SELECT 
+t1.minted - t1.burned AS circulating,
+t1.burned AS used,
+t2.featured
+FROM (
+	SELECT 
+		creator,
+		template_id,
+	   edition_size AS total,
+		COUNT(*) AS minted,
+		count(CASE WHEN burned THEN 1 end) AS burned,
+		CASE WHEN edition_size != 0 THEN edition_size - COUNT(*) ELSE -1 END AS mintable,
+		MAX(t1.mint_date) AS last_minting_date
+	FROM soonmarket_nft t1
+	WHERE edition_size != 1 AND template_id=51066
+	GROUP BY template_id,edition_size,creator) t1
+LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE promotion_type='silver' AND promotion_end_timestamp >= floor(EXTRACT(epoch FROM now())))t2 ON TRUE;
+
+----------------------------------------------------------
+-- insert statement to renew MyNFTs / MyProfile NFTs table
 ----------------------------------------------------------
 
 INSERT INTO soonmarket_nft	

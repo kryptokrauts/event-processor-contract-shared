@@ -307,7 +307,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_promotion
     promotion_object_id TEXT NOT NULL,
 		promotion_end_timestamp BIGINT,
 		promoted_by TEXT,
-		global_sequence BIGINT
+		global_sequence BIGINT,
     PRIMARY KEY (global_sequence)
 )
 
