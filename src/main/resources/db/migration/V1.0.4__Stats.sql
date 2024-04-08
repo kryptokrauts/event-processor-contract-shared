@@ -82,7 +82,7 @@ WHERE vol.block_timestamp >= floor(extract(epoch FROM (NOW() - '1 day'::INTERVAL
 CREATE MATERIALIZED VIEW soonmarket_collection_stats_mv as
 SELECT
 	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
-	COUNT(*) AS total_sales,
+	COUNT(vol.*) AS total_sales,
 	t1.collection_id,
 	(Select count(distinct asset_id) from atomicassets_asset where collection_id=t1.collection_id) as num_nfts
 FROM atomicassets_collection t1
