@@ -1,0 +1,27 @@
+{
+	"type": "record",
+	"name": "auction_event",
+	"namespace": "soonmarket",
+	"fields": [
+		{
+			"name": "blocknum",
+			"type": "long"
+		},
+		{
+			"name": "block_timestamp",
+			"type": ["null","long"]
+		},
+		{
+			"name": "auction_id",
+			"type": ["null","long"]
+		},
+		{
+			"name": "type",
+			"type": "string"
+		},
+		{
+			"name": "end_time",
+			"type": ["null","long"]
+		}
+	]
+}
