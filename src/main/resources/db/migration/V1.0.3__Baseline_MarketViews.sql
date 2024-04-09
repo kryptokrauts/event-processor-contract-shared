@@ -25,7 +25,36 @@ INNER JOIN atomicmarket_auction_asset t5 ON t1.auction_id=t5.auction_id
 LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
 LEFT JOIN soonmarket_exchange_rate_latest_v er ON t1.token = er.token_symbol;
 
-COMMENT ON VIEW public.soonmarket_auction_base_v IS 'Basic aggregation auf auction info to match with asset/template';	
+COMMENT ON VIEW public.soonmarket_auction_base_v IS 'Basic aggregation auf auction info to match with asset/template';
+
+--
+
+CREATE OR REPLACE VIEW soonmarket_auction_running_v AS
+WITH config AS (
+	SELECT maker_fee, taker_fee
+	FROM atomicmarket_config
+	ORDER BY id DESC
+	LIMIT 1
+)
+SELECT 
+	t1.auction_id,
+	t1.blocknum,
+	t1.block_timestamp,
+	t1.duration,
+	t3.blocknum AS bid_block,
+	t3.block_timestamp AS bid_timestamp,
+	t3.current_bid,
+	t3.bidder AS buyer,
+	t1.maker_marketplace,
+	t3.taker_marketplace,
+	t1.collection_fee,
+	config.maker_fee AS maker_market_fee,
+	config.taker_fee AS taker_market_fee
+FROM config,atomicmarket_auction t1
+LEFT JOIN atomicmarket_event_auction_bid_log t3 ON t1.auction_id = t3.auction_id AND t3.current
+WHERE NOT EXISTS (SELECT auction_id FROM atomicmarket_auction_state t2 WHERE t1.auction_id=t2.auction_id);
+
+COMMENT ON VIEW public.soonmarket_auction_running_v IS 'Basic aggregation auf auction info for auction end processing';
 
 ----------------------------------
 -- base views for sale

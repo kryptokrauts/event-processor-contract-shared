@@ -265,8 +265,8 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	t4.promotion_type
 FROM soonmarket_asset_v t1
 LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_valid_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
-LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned
-LEFT JOIN soonmarket_promotion t4 ON t4.promotion_object_id = t3.auction_id::text AND t4.promotion_object = 'auction' AND promotion_type='gold';
+LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_base_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned
+LEFT JOIN soonmarket_promotion_v t4 ON t4.promotion_object_id = t3.auction_id::text AND t4.promotion_object = 'auction' AND promotion_type='gold';
 
 COMMENT ON VIEW soonmarket_nft_detail_v IS 'View for NFT Details';
 
@@ -549,7 +549,7 @@ LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_i
 LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
 LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
 LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE
-LEFT JOIN soonmarket_promotion p1 ON p1.promotion_object_id = t1.collection_id AND p1.promotion_object = 'collection' AND p1.promotion_end_timestamp >= floor(EXTRACT(epoch FROM now()))
+LEFT JOIN soonmarket_promotion_v p1 ON p1.promotion_object_id = t1.collection_id AND p1.promotion_object = 'collection'
 LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collection_id;
 ----------------------------------
 -- Edition
@@ -654,12 +654,12 @@ CREATE OR REPLACE VIEW soonmarket_edition_info_v as
             WHEN (t2.listing_id IS NOT NULL) THEN 'listed'
             ELSE 'unlisted'
         END AS state,
-    COALESCE(t3.auction_token, t2.listing_token) AS token,
-    COALESCE(COALESCE(t3.auction_current_bid, t3.auction_starting_bid), t2.listing_price) AS price,
-    COALESCE(t3.auction_royalty, t2.listing_royalty) AS royalty
+    COALESCE(t3.token, t2.listing_token) AS token,
+    COALESCE(COALESCE(t3.current_bid, t3.starting_price), t2.listing_price) AS price,
+    COALESCE(t3.collection_fee, t2.listing_royalty) AS royalty
    FROM soonmarket_asset_base_v t1
      LEFT JOIN soonmarket_listing_v t2 ON t1.asset_id = t2.asset_id AND t2.valid AND STATE is null AND t2.bundle != true
-   LEFT JOIN soonmarket_auction_v t3 ON t1.asset_id = t3.asset_id AND t3.active AND t3.bundle != true;
+   LEFT JOIN soonmarket_auction_base_v t3 ON t1.asset_id = t3.asset_id AND t3.active AND t3.bundle != true;
  
 COMMENT ON VIEW soonmarket_edition_info_v IS 'Get serial info for a template';
 
