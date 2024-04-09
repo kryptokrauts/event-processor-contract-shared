@@ -211,6 +211,7 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_auction
     bundle_size int,
 		start_time bigint,
     end_time bigint,
+		duration bigint,
     price double precision,
     token TEXT NOT NULL,
     collection_fee double precision NOT NULL,
