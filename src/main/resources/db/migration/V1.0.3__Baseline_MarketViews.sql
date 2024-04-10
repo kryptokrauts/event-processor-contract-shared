@@ -31,7 +31,7 @@ COMMENT ON VIEW public.soonmarket_auction_base_v IS 'Basic aggregation auf aucti
 
 CREATE OR REPLACE VIEW soonmarket_auction_running_v AS
 WITH config AS (
-	SELECT maker_fee, taker_fee
+	SELECT maker_fee, taker_fee, auction_reset_duration_seconds
 	FROM atomicmarket_config
 	ORDER BY id DESC
 	LIMIT 1
@@ -41,15 +41,17 @@ SELECT
 	t1.blocknum,
 	t1.block_timestamp,
 	t1.duration,
+	t1.end_time,
 	t3.blocknum AS bid_block,
 	t3.block_timestamp AS bid_timestamp,
 	t3.current_bid,
 	t3.bidder AS buyer,
 	t1.maker_marketplace,
 	t3.taker_marketplace,
-	t1.collection_fee,
+	t1.collection_fee AS royalty,
 	config.maker_fee AS maker_market_fee,
-	config.taker_fee AS taker_market_fee
+	config.taker_fee AS taker_market_fee,
+	config.auction_reset_duration_seconds
 FROM config,atomicmarket_auction t1
 LEFT JOIN atomicmarket_event_auction_bid_log t3 ON t1.auction_id = t3.auction_id AND t3.current
 WHERE NOT EXISTS (SELECT auction_id FROM atomicmarket_auction_state t2 WHERE t1.auction_id=t2.auction_id);
