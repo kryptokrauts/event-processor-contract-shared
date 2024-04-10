@@ -14,6 +14,10 @@
 		{
 			"name": "auction_id",
 			"type": ["null","long"]
+		},		
+		{
+			"name": "global_sequence",
+			"type": ["null","long"]
 		},
 		{
 			"name": "type",
