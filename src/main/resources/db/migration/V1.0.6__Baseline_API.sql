@@ -244,7 +244,8 @@ round_to_decimals_f(CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_price 
 	WHEN t1.auction_id IS NOT null THEN COALESCE(t1.auction_current_bid,t1.auction_starting_bid)
 	END * e.usd)
-	AS filter_price_usd
+	AS filter_price_usd,
+ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) -  t1.auction_end_date) as auction_sort_date	
 FROM soonmarket_nft_card t1
 LEFT JOIN soonmarket_exchange_rate_latest_v e ON e.token_symbol = 
 CASE 
