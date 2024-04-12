@@ -250,6 +250,9 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_auctionid_state
     (auction_id,state)
     TABLESPACE pg_default;
 
+COMMENT ON TABLE public.atomicmarket_auction_state IS 'Store auction state change information';
+COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids, 5=finished, waiting for irreversibility';		
+
 --
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_asset
@@ -421,7 +424,7 @@ FOR EACH ROW
 EXECUTE FUNCTION atomicmarket_state_fill_mtfees_f();					
 
 COMMENT ON TABLE public.atomicmarket_buyoffer_state IS 'Store buyoffer state change information';
-COMMENT ON COLUMN public.atomicmarket_buyoffer_state.state IS 'Sale state mapping: 1=declined, 2=cancelled, 3=accepted/sold';
+COMMENT ON COLUMN public.atomicmarket_buyoffer_state.state IS 'Buyoffer state mapping: 1=declined, 2=cancelled, 3=accepted/sold';
 
 --
 

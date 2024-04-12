@@ -148,6 +148,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_nft_card
     highest_bidder TEXT,
     auction_start_date bigint,
     auction_end_date bigint,
+		auction_state int,
     display boolean
 )
 TABLESPACE pg_default;
