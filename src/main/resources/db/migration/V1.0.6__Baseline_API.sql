@@ -677,7 +677,7 @@ SELECT
 	t1.bidder,
 	t1.updated_end_time,
 	t1.bid_number
-FROM atomicmarket_event_auction_bid_log t1
+FROM atomicmarket_auction_bid_log t1
 LEFT JOIN atomicmarket_auction t2 ON t1.auction_id=t2.auction_id
 ORDER BY t1.bid_number;
 

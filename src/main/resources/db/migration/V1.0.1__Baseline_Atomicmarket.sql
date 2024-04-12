@@ -20,32 +20,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- trigger function set auction bid number and update end time
+-- trigger function set auction bid number
 CREATE OR REPLACE FUNCTION atomicmarket_auction_bid_log_f()
 RETURNS TRIGGER AS $$
 DECLARE
     _bid_number int;
-		_end_time DOUBLE PRECISION;
-		_updated_end_time DOUBLE PRECISION;
-		_now BIGINT;
-		_auction_reset_ms BIGINT;
 BEGIN
     -- Retrieve new highest bid number
-    SELECT COALESCE(max(bid_number)+1,1) INTO _bid_number FROM public.atomicmarket_event_auction_bid_log where auction_id = NEW.auction_id;
-		-- get config
-		SELECT auction_reset_duration_seconds*1000 INTO _auction_reset_ms FROM public.atomicmarket_config order by version desc limit 1;
-		-- retrieve end times for potential bump
-		SELECT end_time into _end_time from public.atomicmarket_auction where auction_id = NEW.auction_id;
-		SELECT max(updated_end_time) INTO _updated_end_time FROM public.atomicmarket_event_auction_bid_log where auction_id = NEW.auction_id;
-		SELECT FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) into _now;
-
-    -- set fees
-    NEW.bid_number := _bid_number;
-    NEW.updated_end_time := CASE WHEN (GREATEST(_updated_end_time,_end_time)-_now)<=_auction_reset_ms THEN _now+_auction_reset_ms ELSE NULL END;
+    SELECT COALESCE(max(bid_number)+1,1) INTO _bid_number FROM public.atomicmarket_auction_bid_log where auction_id = NEW.auction_id;
+		
+    NEW.bid_number := _bid_number;  
 		NEW.current := true;
 
 		-- set other bids current value to false
-		UPDATE atomicmarket_event_auction_bid_log SET current = false WHERE auction_id = NEW.auction_id AND global_sequence != NEW.global_sequence;
+		UPDATE atomicmarket_auction_bid_log SET current = false WHERE auction_id = NEW.auction_id AND global_sequence != NEW.global_sequence;
 
     RETURN NEW;
 END;
@@ -262,30 +250,6 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_auctionid_state
     (auction_id,state)
     TABLESPACE pg_default;
 
--- trigger to omit setting state to 2 when state was already set to 4 (cancelled without bids)
--- because an onchain event cancelauct will be sent when the owner returns the asset after an unsuccessful auction
-CREATE OR REPLACE FUNCTION atomicmarket_auction_state_cancel_check_f()
-RETURNS TRIGGER AS $$
-BEGIN
-	-- if auction state is already 4 (ended without bids) we do not set the cancelauct event
-	-- when the owner triggers the asset claim of the unsuccessful auction
-  IF NEW.state = 2 AND OLD.state != 2 THEN
-		NEW.state = OLD.state;
-	END IF;
-	
-	RAISE WARNING 'Execution of trigger % took % ms', TG_NAME, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE TRIGGER atomicmarket_auction_state_cancel_check_tr
-BEFORE UPDATE ON atomicmarket_auction_state
-FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_auction_state_cancel_check_f();		
-
-COMMENT ON TABLE public.atomicmarket_auction_state IS 'Store auction state change information';
-COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids';
-
 --
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_asset
@@ -325,7 +289,7 @@ EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();
 
 --
 
-CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
+CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_bid_log
 (
 		id bigserial,
     blocknum bigint NOT NULL,
@@ -342,19 +306,19 @@ CREATE TABLE IF NOT EXISTS public.atomicmarket_event_auction_bid_log
 )
 TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_auction_bid_log_current
-    ON public.atomicmarket_event_auction_bid_log USING btree
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_bid_log_current
+    ON public.atomicmarket_auction_bid_log USING btree
     (current)
     TABLESPACE pg_default;
 
-CREATE INDEX IF NOT EXISTS idx_atomicmarket_event_auction_bid_log_auction_id
-    ON public.atomicmarket_event_auction_bid_log USING btree
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_bid_log_auction_id
+    ON public.atomicmarket_auction_bid_log USING btree
     (auction_id)
     TABLESPACE pg_default;
 
 -- add trigger to set bid number and potential bump date
 CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_log_tr
-BEFORE INSERT ON atomicmarket_event_auction_bid_log
+BEFORE INSERT ON atomicmarket_auction_bid_log
 FOR EACH ROW
 EXECUTE FUNCTION atomicmarket_auction_bid_log_f();	
 

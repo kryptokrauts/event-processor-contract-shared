@@ -2,7 +2,7 @@
 -- base views for auction
 ----------------------------------
 
-CREATE VIEW soonmarket_auction_base_v as
+CREATE OR REPLACE VIEW soonmarket_auction_base_v as
 SELECT 
 	t1.auction_id,
 	t5.asset_id,
@@ -19,11 +19,12 @@ SELECT
 	t1.bundle,
 	t1.bundle_size,
 	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end,
-	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000) as active
+	(t2.state IS NULL OR t2.state = 5) as active
 FROM atomicmarket_auction t1
 INNER JOIN atomicmarket_auction_asset t5 ON t1.auction_id=t5.auction_id
-LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
-LEFT JOIN soonmarket_exchange_rate_latest_v er ON t1.token = er.token_symbol;
+LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
+LEFT JOIN soonmarket_exchange_rate_latest_v er ON t1.token = er.token_symbol
+left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id;
 
 COMMENT ON VIEW public.soonmarket_auction_base_v IS 'Basic aggregation auf auction info to match with asset/template';
 
@@ -38,6 +39,7 @@ WITH config AS (
 )
 SELECT 
 	t1.auction_id,
+	t2.state,
 	t1.blocknum,
 	t1.block_timestamp,
 	t1.duration,
@@ -53,8 +55,9 @@ SELECT
 	config.taker_fee AS taker_market_fee,
 	config.auction_reset_duration_seconds
 FROM config,atomicmarket_auction t1
-LEFT JOIN atomicmarket_event_auction_bid_log t3 ON t1.auction_id = t3.auction_id AND t3.current
-WHERE NOT EXISTS (SELECT auction_id FROM atomicmarket_auction_state t2 WHERE t1.auction_id=t2.auction_id);
+LEFT JOIN atomicmarket_auction_bid_log t3 ON t1.auction_id = t3.auction_id AND t3.current
+LEFT JOIN atomicmarket_auction_state t2 ON t1.auction_id = t2.auction_id
+WHERE t2.state IS NULL or t2.state = 5;
 
 COMMENT ON VIEW public.soonmarket_auction_running_v IS 'Basic aggregation auf auction info for auction end processing';
 

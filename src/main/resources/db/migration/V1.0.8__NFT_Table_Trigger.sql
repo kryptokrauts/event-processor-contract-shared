@@ -183,7 +183,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER soonmarket_nft_tables_auction_bid_tr
-AFTER INSERT ON public.atomicmarket_event_auction_bid_log
+AFTER INSERT ON public.atomicmarket_auction_bid_log
 FOR EACH ROW EXECUTE FUNCTION soonmarket_nft_tables_auction_bid_f();	
 
 ---------------------------------------------------------------

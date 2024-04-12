@@ -154,8 +154,8 @@ SELECT
 	t3.index,	
 	t3.template_id,
 	t3.collection_id,
-	t2.state,
-	GREATEST (t4.updated_end_time,t1.end_time) > floor(extract(epoch from NOW() AT TIME ZONE 'UTC')*1000) AND STATE IS NULL as active,
+	t2.state,	
+	(t2.state IS NULL OR t2.state = 5) as active,
 	t1.block_timestamp AS auction_start_date,
 	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end_date,
 	t1.token AS auction_token,
@@ -181,7 +181,7 @@ SELECT
 	t5.asset_media_preview	
 FROM atomicmarket_auction t1
 left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
-LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
+LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
 INNER JOIN atomicmarket_auction_asset t3 ON t1.auction_id = t3.auction_id
 LEFT JOIN soonmarket_asset_base_v t5 ON t5.asset_id=t3.asset_id;
 
@@ -198,7 +198,7 @@ SELECT
 	t4.taker_marketplace
 FROM atomicmarket_auction t1
 LEFT join atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
-LEFT JOIN atomicmarket_event_auction_bid_log t4 ON t4.auction_id = t1.auction_id AND t4.current
+LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id = t1.auction_id AND t4.current
 WHERE 
 	t2.state IS NULL AND
 	-- auction end must be 180secs (= 300 blocks) older than auction end to make sure its finalized

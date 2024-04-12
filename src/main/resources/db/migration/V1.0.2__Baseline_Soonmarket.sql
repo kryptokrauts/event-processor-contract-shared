@@ -135,9 +135,9 @@ t1.collection_id,
 CASE WHEN b1.collection_id IS NOT NULL or b2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS blacklisted,
 COALESCE(b1.block_timestamp,b2.block_timestamp) AS blacklist_date,
 COALESCE(b1.reviewer_comment,b2.reporter_comment) AS blacklist_reason,
-CASE WHEN b1.reviewer is not null THEN 'NFT Watch' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
+CASE WHEN b1.reviewer is not null THEN 'NFT Watch DAO' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
 CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS shielded,
-CASE WHEN s1.reviewer is not null THEN 'NFT Watch' WHEN s2.reporter is not null THEN 'Soon.Market' ELSE null END AS shielding_actor
+CASE WHEN s1.reviewer is not null THEN 'NFT Watch DAO' WHEN s2.reporter is not null THEN 'Soon.Market' ELSE null END AS shielding_actor
 FROM atomicassets_collection t1                                                   
 LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
