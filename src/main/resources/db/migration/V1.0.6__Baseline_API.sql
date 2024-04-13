@@ -884,7 +884,8 @@ SELECT
 	t2.edition_size,
 	t2.template_id,
 	t2.owner,
-	t1.price*t3.usd*t1.royalty AS filter_price_usd
+	t1.price*t3.usd*t1.royalty AS filter_price_usd,
+	t1.price*t3.usd AS price_usd
 FROM all_sales t1
 LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id = t2.asset_id
 LEFT JOIN soonmarket_exchange_rate_historic_v t3 
