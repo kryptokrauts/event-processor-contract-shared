@@ -117,10 +117,10 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
     reporter TEXT NULL,
-		reporterComment TEXT NULL,
-		reportCid TEXT NULL,
+		reporter_comment TEXT NULL,		
     reviewer TEXT NOT NULL,
 		reviewer_comment TEXT,		
+		report_cid TEXT NULL,
 		skip_basic_check BOOLEAN,
 		skip_reason TEXT,    
     PRIMARY KEY (collection_id)
@@ -137,7 +137,13 @@ COALESCE(b1.block_timestamp,b2.block_timestamp) AS blacklist_date,
 COALESCE(b1.reviewer_comment,b2.reporter_comment) AS blacklist_reason,
 CASE WHEN b1.reviewer is not null THEN 'NFT Watch DAO' WHEN b2.reporter is not null THEN 'Soon.Market' ELSE null END AS blacklist_actor,
 CASE WHEN s1.collection_id IS NOT NULL or s2.collection_id IS NOT NULL THEN TRUE ELSE FALSE END AS shielded,
-CASE WHEN s1.reviewer is not null THEN 'NFT Watch DAO' WHEN s2.reporter is not null THEN 'Soon.Market' ELSE null END AS shielding_actor
+COALESCE(s1.block_timestamp,s2.block_timestamp) AS shielding_date,
+CASE WHEN s1.reviewer is not null THEN 'NFT Watch DAO' WHEN s2.reporter is not null THEN 'Soon.Market' ELSE null END AS shielding_actor,
+COALESCE(s1.reporter,s2.reporter) as reporter,
+s1.skip_basic_check,
+s1.skip_reason,
+s1.report_cid,
+s1.reviewer
 FROM atomicassets_collection t1                                                   
 LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
 LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 

@@ -43,7 +43,8 @@ SELECT
 	t1.memo,
 	t1.collection_fee AS royalty,
 	config.market_fee,
-	t5.shielded
+	t5.shielded,
+	t5.blacklisted
 FROM config, valid_offers v
 LEFT JOIN atomicmarket_buyoffer t1 ON v.buyoffer_id = t1.buyoffer_id
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
@@ -81,7 +82,8 @@ SELECT
 	t1.price,
 	t1.memo,
 	t1.collection_fee AS royalty,
-	t5.shielded
+	t5.shielded,
+	t5.blacklisted
 FROM (SELECT * FROM atomicmarket_buyoffer b WHERE NOT EXISTS (SELECT 1 FROM atomicmarket_buyoffer_state WHERE b.buyoffer_id=buyoffer_id)) t1
 LEFT JOIN soonmarket_asset_base_v t4 ON t1.primary_asset_id=t4.asset_id
 LEFT JOIN soonmarket_collection_v t5 ON t4.collection_id = t5.collection_id;
@@ -242,7 +244,8 @@ round_to_decimals_f(CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_price 
 	WHEN t1.auction_id IS NOT null THEN COALESCE(t1.auction_current_bid,t1.auction_starting_bid)
 	END * e.usd)
-	AS filter_price_usd
+	AS filter_price_usd,
+ABS(FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) -  t1.auction_end_date) as auction_sort_date	
 FROM soonmarket_nft_card t1
 LEFT JOIN soonmarket_exchange_rate_latest_v e ON e.token_symbol = 
 CASE 
@@ -511,7 +514,8 @@ WITH valid_sales AS (
                WHERE (t1_1.sale_id = t2_1.sale_id))))
        GROUP BY t1_1.sale_id,t1_1.collection_id
      )
-SELECT                                                                            
+SELECT   
+t1.block_timestamp,                                                                         
 t1.collection_id,                                                                 
 t1.creator,                                                                       
 t3.royalty as collection_fee,                                                                       
@@ -534,7 +538,13 @@ v1.blacklist_date,
 v1.blacklist_reason,
 v1.blacklist_actor,
 v1.shielded,
+v1.shielding_date,
 v1.shielding_actor,
+v1.skip_basic_check,
+v1.skip_reason,
+v1.report_cid,
+v1.reviewer,
+v1.reporter,
 t2.name,                                                                          
 t2.description,
 t5.schema_id,
@@ -552,6 +562,7 @@ LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_i
 LEFT JOIN LATERAL (SELECT string_agg(schema_id,',') AS schema_id,string_agg(SCHEMA_NAME,',') AS schema_name FROM atomicassets_schema WHERE t1.collection_id=collection_id GROUP BY t1.collection_id)t5 ON TRUE
 LEFT JOIN soonmarket_promotion_v p1 ON p1.promotion_object_id = t1.collection_id AND p1.promotion_object = 'collection'
 LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collection_id;
+
 ----------------------------------
 -- Edition
 ----------------------------------
@@ -781,6 +792,7 @@ SELECT
 	t2.collection_name,
 	t2.collection_image,
 	t2.shielded,
+	t2.blacklisted,
 	t2.asset_name,
 	t2.asset_media,
 	t2.asset_media_type,
@@ -863,6 +875,7 @@ SELECT
 	t2.collection_image,
 	t2.creator,
 	t2.shielded,
+	t2.blacklisted,
 	t2.asset_name,
 	t2.asset_media,
 	t2.asset_media_type,
@@ -871,7 +884,8 @@ SELECT
 	t2.edition_size,
 	t2.template_id,
 	t2.owner,
-	t1.price*t3.usd*t1.royalty AS filter_price_usd
+	t1.price*t3.usd*t1.royalty AS filter_price_usd,
+	t1.price*t3.usd AS price_usd
 FROM all_sales t1
 LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id = t2.asset_id
 LEFT JOIN soonmarket_exchange_rate_historic_v t3 
