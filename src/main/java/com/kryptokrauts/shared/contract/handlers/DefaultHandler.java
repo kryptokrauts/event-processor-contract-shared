@@ -16,7 +16,7 @@ import org.eclipse.microprofile.reactive.messaging.Emitter;
 public class DefaultHandler extends BaseHandler {
 
   @Inject
-  @Channel("structured")
+  @Channel("eventlog")
   Emitter<event_log> eventLogEmitter;
 
   @Inject
