@@ -53,6 +53,12 @@ public abstract class BaseHandler {
     emitter.send(Message.of(msg).addMetadata(this.createHeader(msg.getClass().getSimpleName())));
   }
 
+  protected <T> void emitTransformedMessage(T msg, Emitter<T> emitter, String prefix) {
+    emitter.send(
+        Message.of(msg)
+            .addMetadata(this.createHeader(prefix + "_" + msg.getClass().getSimpleName())));
+  }
+
   protected void logDebugStartHandleEvent(RawEvent event) {
     BaseHandler.logger.debugf(
         "Handle incoming '%s' event at blocknum %d", event.getType(), event.getBlocknum());

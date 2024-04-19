@@ -33,7 +33,7 @@ public class DefaultHandler extends BaseHandler {
    * @param event
    * @throws Exception
    */
-  public void handleEvent(RawEvent event) throws Exception {
+  public void handleEvent(RawEvent event, String context) throws Exception {
     BaseHandler.logger.debugf(
         "Persisting incoming '%s' event at blocknum %d to event log",
         event.getType(), event.getBlocknum());
@@ -47,7 +47,7 @@ public class DefaultHandler extends BaseHandler {
     transformed.setData(this.objectMapper.writeValueAsString(event.getData()));
     transformed.setGlobalSequence(event.getGlobal_sequence());
 
-    this.emitTransformedMessage(transformed, this.eventLogEmitter);
+    this.emitTransformedMessage(transformed, this.eventLogEmitter, context);
   }
 
   /**
