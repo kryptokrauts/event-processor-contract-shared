@@ -253,7 +253,8 @@ CASE
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_token
 END
 WHERE NOT blacklisted 
-AND (CASE WHEN auction_end_date IS NOT NULL THEN FLOOR((extract(epoch from NOW() at time zone 'utc'))*1000) <= t1.auction_end_date ELSE TRUE END);
+-- auction validity
+AND (t1.auction_state IS NULL OR t1.auction_state = 5);
 
 COMMENT ON VIEW soonmarket_nft_card_v IS 'View for NFT Cards';
 
