@@ -4,6 +4,8 @@
 
 CREATE OR REPLACE VIEW soonmarket_auction_base_v as
 SELECT 
+	t1.blocknum,
+	t1.block_timestamp,
 	t1.auction_id,
 	t5.asset_id,
 	t5.template_id,
@@ -19,7 +21,10 @@ SELECT
 	t1.bundle,
 	t1.bundle_size,
 	GREATEST (t4.updated_end_time,t1.end_time) AS auction_end,
-	(t2.state IS NULL OR t2.state = 5) as active
+	(t2.state IS NULL OR t2.state = 5) as active,
+	t5.index,
+	t2.state,
+	t4.bidder as highest_bidder
 FROM atomicmarket_auction t1
 INNER JOIN atomicmarket_auction_asset t5 ON t1.auction_id=t5.auction_id
 LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current

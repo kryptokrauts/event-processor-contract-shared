@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
 		context text NOT NULL,
     type text NOT NULL,    
     data jsonb NULL,
-		PRIMARY KEY (global_sequence, type)
+		PRIMARY KEY (global_sequence, type, block_timestamp)
 )
 TABLESPACE pg_default;
 

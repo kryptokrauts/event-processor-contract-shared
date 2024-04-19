@@ -2,24 +2,6 @@
 -- trigger functions
 ----------------------------------
 
--- trigger function to fill template_id and collection_id in market_asset tables
-CREATE OR REPLACE FUNCTION atomicmarket_asset_fill_ids_f()
-RETURNS TRIGGER AS $$
-DECLARE
-    _template_id bigint;
-		_collection_id text;
-BEGIN
-    -- Retrieve the values from the previous row
-    SELECT template_id, collection_id INTO _template_id,_collection_id FROM public.atomicassets_asset WHERE asset_id = NEW.asset_id;
-
-    -- set template_id and collection_id
-    NEW.template_id := _template_id;
-    NEW.collection_id := _collection_id;
-
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 -- trigger function set auction bid number
 CREATE OR REPLACE FUNCTION atomicmarket_auction_bid_log_f()
 RETURNS TRIGGER AS $$
@@ -178,13 +160,6 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_asset_id
     (asset_id)
     TABLESPACE pg_default;			
 
--- add trigger to set template_id / collection_id
-
-CREATE OR REPLACE TRIGGER atomicmarket_sale_asset_fill_ids_tr
-BEFORE INSERT ON atomicmarket_sale_asset
-FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
-
 ----------------------------------
 -- auction tables
 ----------------------------------
@@ -282,13 +257,6 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_asset_asset_id
     ON public.atomicmarket_auction_asset USING btree
     (asset_id)
     TABLESPACE pg_default;
-
--- add trigger to set template_id / collection_id
-
-CREATE OR REPLACE TRIGGER atomicmarket_auction_asset_fill_ids_tr
-BEFORE INSERT ON atomicmarket_auction_asset
-FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
 
 --
 
@@ -455,13 +423,6 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_asset_asset_id
     ON public.atomicmarket_buyoffer_asset USING btree
     (asset_id)
     TABLESPACE pg_default;
-
--- add trigger
-
-CREATE OR REPLACE TRIGGER atomicmarket_buyoffer_asset_fill_ids_tr
-BEFORE INSERT ON atomicmarket_buyoffer_asset
-FOR EACH ROW
-EXECUTE FUNCTION atomicmarket_asset_fill_ids_f();			
 
 ----------------------------------
 -- default tables
