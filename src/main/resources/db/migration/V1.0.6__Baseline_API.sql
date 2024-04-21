@@ -252,9 +252,12 @@ CASE
 	WHEN t1.listing_id IS NOT NULL THEN t1.listing_token
 	WHEN t1.auction_id IS NOT NULL THEN t1.auction_token
 END
+-- not blacklisted
 WHERE NOT blacklisted 
 -- auction validity
-AND (t1.auction_state IS NULL OR t1.auction_state = 5);
+AND (t1.auction_state IS NULL OR t1.auction_state = 5)
+-- should be displayed
+AND display;
 
 COMMENT ON VIEW soonmarket_nft_card_v IS 'View for NFT Cards';
 
