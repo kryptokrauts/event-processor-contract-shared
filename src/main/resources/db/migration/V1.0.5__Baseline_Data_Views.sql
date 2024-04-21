@@ -146,8 +146,8 @@ LEFT JOIN soonmarket_collection_v t6 ON t1.collection_id = t6.collection_id;
 
 CREATE OR REPLACE VIEW soonmarket_auction_v AS
 SELECT 
-	t1.blocknum,
-	t1.block_timestamp,
+	COALESCE(t2.blocknum,t4.blocknum,t1.blocknum) AS blocknum,
+	COALESCE(t2.block_timestamp,t4.block_timestamp,t1.block_timestamp) AS block_timestamp,
 	t1.auction_id,
 	t3.asset_id,
 	t5.serial,
