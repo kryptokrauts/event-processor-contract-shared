@@ -452,6 +452,9 @@ Real Link:- https://opensea.io/collection/truerangers'),
 -- shielding
 ----------------------------------
 INSERT INTO public.nft_watch_shielding VALUES
+	(251798464,	1713563900000, '531541145325', 'masterolive', null, 'chrisgrc', null, 'QmeN6z8dfzN6WTgZeNHFpmEWzG4qdD4rpMUGEdFnhSJE3G', false, null),
+	(251713635,	1713521485500, 'unbearable', 'unbearable', null, 'ankusoni5', null, 'QmUESRU7ipSeFAgucd1tYnVnVPwA2gmgU1CwrV4b92iZ14', false, null),
+	(250732988,	1713031134500, 'degenhoopers', 'degenhoopers', null, 'ankusoni5', null, 'QmW6mBeT99HaUyvXBJLQ9R9MTecFk33YCsTRx2YuCWx2qX', false, null),
 	(250518835,	1712924057500, '235312112554', null, null, 'eruidnft', null, 'QmPjYGNi1M6VE8Va8hsZbK2e1ojPUku7TY8eeSV52mi1ZP', true, 'Reshielding'),
 	(241369031, 1708346789500, '115421325544', null, null, 'chrisgrc', null, 'QmargFUkrcqYy4fyx8ribJUAPFFtH4XGiJQ1VMjDnt5hqR', true, 'APP Migration'),
 	(241366563, 1708345555500, '122413343322', null, null, 'chrisgrc', null, 'QmZFti2xbqgkTk1SBcdpcnstmzgj1tffMKmQVd8DdWZcwo', true, 'APP Migration'),
