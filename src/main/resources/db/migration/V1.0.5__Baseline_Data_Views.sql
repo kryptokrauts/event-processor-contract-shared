@@ -364,7 +364,8 @@ SELECT
 	t4.asset_media_preview,
 	t4.owner,
 	t1.bundle,
-	t1.memo
+	t1.memo,
+	t1.receiver
 FROM atomicassets_transfer t1
 LEFT JOIN atomicassets_transfer_asset t2 ON t1.transfer_id=t2.transfer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;
