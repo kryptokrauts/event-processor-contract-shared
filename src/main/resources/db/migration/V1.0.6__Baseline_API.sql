@@ -628,7 +628,8 @@ SELECT
 	NULL::DOUBLE precision as auction_royalty,
 	NULL::DOUBLE precision as auction_current_bid,
 	NULL::int as num_bids,
-	NULL as highest_bidder
+	NULL as highest_bidder,
+	NULL ::INT as state
 FROM soonmarket_edition_listings_v WHERE bundle_size IS NOT NULL AND 
 	(template_id,listing_id,INDEX) IN(SELECT template_id,listing_id,min(INDEX) 
 	FROM soonmarket_edition_listings_v v1 
@@ -654,7 +655,8 @@ SELECT
 	auction_royalty,
 	auction_current_bid,
 	num_bids,
-	highest_bidder
+	highest_bidder,
+	state
 FROM soonmarket_edition_auctions_v WHERE bundle_size IS NOT NULL AND
 	(template_id,auction_id,INDEX) IN(SELECT template_id,auction_id,min(INDEX) 
 	FROM soonmarket_edition_auctions_v v1 
@@ -946,7 +948,7 @@ SELECT
 	COALESCE(t3.burnable,t4.burnable) AS burnable,	
 	t2.owner,
 	t2.block_timestamp AS mint_date, 
-	COALESCE(t2.block_timestamp,t1.block_timestamp) AS received_date, 			
+	COALESCE(r1.transfer_date,t1.block_timestamp) AS received_date, 			
 	COALESCE(burned,FALSE) AS burned,
 	CASE WHEN burned THEN t1.block_timestamp ELSE NULL END AS burned_date,
 	CASE WHEN burned THEN t2.owner END AS burned_by,
@@ -963,10 +965,16 @@ SELECT
 	t5.blacklisted
 FROM atomicassets_asset t1
 LEFT JOIN atomicassets_asset_owner_log t2 ON t1.asset_id=t2.asset_id AND t2.current 
+LEFT JOIN (
+	SELECT asset_id, max(transfer_date) AS transfer_date, receiver
+	from soonmarket_transfer_v 
+	where memo like '%Auction Won%' OR memo LIKE '%Purchased Sale%' OR memo LIKE '%Accepted Buyoffer%' 
+	GROUP BY asset_id,receiver		
+) r1 ON t2.owner=r1.receiver AND t2.asset_id=r1.asset_id
 LEFT JOIN atomicassets_asset_data t3 ON t1.asset_id=t3.asset_id
 LEFT JOIN soonmarket_template_v t4 ON t1.template_id=t4.template_id
 LEFT JOIN soonmarket_collection_v t5 ON t1.collection_id=t5.collection_id
-LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account	
+LEFT JOIN soonmarket_profile t6 ON t5.creator=t6.account
 )
 SELECT 
 	t1.*,
