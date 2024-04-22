@@ -47,6 +47,11 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_profile
 		bio TEXT,
 		has_banner boolean,
 		num_followers int,
+		kyc_level text,
+		kyc_provider text,
+		kyc_date bigint,
+		kyc_last_updated bigint,
+		kyc_updated_by text,
     PRIMARY KEY (account)
 )
 TABLESPACE pg_default;
