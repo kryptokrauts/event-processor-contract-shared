@@ -10900,5 +10900,6 @@ INSERT INTO public.soonmarket_exchange_rate VALUES
 	(9946, '2024-03-01 00:15:00.776', '2024-03-02 00:15:01.190917', 1, 1709251200000, '2024-03-01 00:00:00', 0.00158839, NULL, 'coingecko', NULL),
 	(9948, '2024-03-01 00:15:00.779', '2024-03-02 00:15:01.191338', 10, 1709251200000, '2024-03-01 00:00:00', 0.113382, 0.104381, 'coingecko', NULL),
 	(9943, '2024-03-01 00:15:00.754', '2024-03-02 00:45:01.01532', 3, 1709251200000, '2024-03-01 00:00:00', 1.89, 1.73, 'coingecko', NULL);
-
-	
+-- set sequences
+SELECT setval('soonmarket_exchange_rate_asset_id_seq', (SELECT MAX(id) FROM soonmarket_exchange_rate_asset));
+SELECT setval('soonmarket_exchange_rate_id_seq', (SELECT MAX(id) FROM soonmarket_exchange_rate));
