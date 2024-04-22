@@ -293,6 +293,7 @@ SELECT
 	t1.block_timestamp AS buyoffer_date,
 	t1.buyoffer_id,
 	t5.state,
+  COALESCE((t1.owner = t1.seller), false) AS valid,	
 	t5.block_timestamp AS buyoffer_update_date,
 	t1.primary_asset_id,
 	t2.asset_id,
