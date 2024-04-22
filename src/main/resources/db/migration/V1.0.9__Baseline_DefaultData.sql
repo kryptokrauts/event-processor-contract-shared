@@ -531,7 +531,7 @@ INSERT INTO public.soonmarket_exchange_rate_asset (id, date_created, date_change
 INSERT INTO public.soonmarket_exchange_rate_asset (id, date_created, date_changed, symbol, name, external_id, sync_url_historic, token_symbol, source, token_precision, ignore) VALUES (10, '2023-01-12 11:15:00.233', '2023-01-12 11:45:00.365926', 'METAL', 'Metal Blockchain', 'metal-blockchain', 'https://api.coingecko.com/api/v3/coins/metal-blockchain/history?date=dd-mm-yyyy&localization=false', 'METAL', 'coingecko', 8, false);
 
 INSERT INTO public.soonmarket_exchange_rate VALUES
-	(1087, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609459200000, '2021-01-01 00:00:00', 28923.63, 23713.33, 'coingecko', NULL),
+		(1087, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609459200000, '2021-01-01 00:00:00', 28923.63, 23713.33, 'coingecko', NULL),
 	(1088, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609545600000, '2021-01-02 00:00:00', 29331.69, 24076.03, 'coingecko', NULL),
 	(1089, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609632000000, '2021-01-03 00:00:00', 32178.33, 25925.69, 'coingecko', NULL),
 	(1090, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609718400000, '2021-01-04 00:00:00', 33000.05, 26190.43, 'coingecko', NULL),
@@ -10900,3 +10900,5 @@ INSERT INTO public.soonmarket_exchange_rate VALUES
 	(9946, '2024-03-01 00:15:00.776', '2024-03-02 00:15:01.190917', 1, 1709251200000, '2024-03-01 00:00:00', 0.00158839, NULL, 'coingecko', NULL),
 	(9948, '2024-03-01 00:15:00.779', '2024-03-02 00:15:01.191338', 10, 1709251200000, '2024-03-01 00:00:00', 0.113382, 0.104381, 'coingecko', NULL),
 	(9943, '2024-03-01 00:15:00.754', '2024-03-02 00:45:01.01532', 3, 1709251200000, '2024-03-01 00:00:00', 1.89, 1.73, 'coingecko', NULL);
+
+	

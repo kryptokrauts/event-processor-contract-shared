@@ -253,7 +253,8 @@ SELECT
 	t2.maker_market_fee as listing_maker_market_fee,
 	t2.taker_market_fee as listing_taker_market_fee,
 	t1.maker_marketplace,
-	t2.taker_marketplace
+	t2.taker_marketplace,
+	t2.blocknum as sale_date
 FROM atomicmarket_sale t1
 LEFT JOIN atomicmarket_sale_state t2 ON t1.sale_id=t2.sale_id
 LEFT JOIN soonmarket_exchange_rate_latest_v e1 ON t1.token = e1.token_symbol
