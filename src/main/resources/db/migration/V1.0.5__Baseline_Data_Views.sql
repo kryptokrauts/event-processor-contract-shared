@@ -237,7 +237,8 @@ SELECT
 	t1.block_timestamp AS listing_date,
 	t1.sale_id as listing_id,
 	t2.state,
-	COALESCE(t5.owner = t1.seller,false) AS VALID,
+	CASE WHEN t2.state IS NULL then
+	COALESCE(	t5.owner = t1.seller,FALSE) ELSE TRUE END AS VALID,
 	t3.asset_id,
 	t4.serial,
 	t3.index,
@@ -293,7 +294,8 @@ SELECT
 	t1.block_timestamp AS buyoffer_date,
 	t1.buyoffer_id,
 	t5.state,
-  COALESCE((t4.owner = t1.seller), false) AS valid,	
+	CASE WHEN t5.state IS NULL then
+	COALESCE(	t4.owner = t1.seller,FALSE) ELSE TRUE END AS VALID,
 	t5.block_timestamp AS buyoffer_update_date,
 	t1.primary_asset_id,
 	t2.asset_id,
