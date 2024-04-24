@@ -124,10 +124,10 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
     reporter TEXT NULL,
 		reporter_comment TEXT NULL,		
     reviewer TEXT NOT NULL,
-		reviewer_comment TEXT,		
+		reviewer_comment TEXT NULL,		
 		report_cid TEXT NULL,
-		skip_basic_check BOOLEAN,
-		skip_reason TEXT,    
+		skip_basic_check BOOLEAN NULL,
+		skip_reason TEXT NULL,    
     PRIMARY KEY (collection_id)
 )
 TABLESPACE pg_default;
