@@ -495,7 +495,28 @@ FROM (
 	GROUP BY template_id,edition_size,creator) t1
 LEFT JOIN LATERAL (SELECT * from soonmarket_nft_v WHERE t1.template_id=template_id AND t1.creator=creator AND edition_size!=1 LIMIT 1)t2 ON TRUE
 UNION ALL
-SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft_v WHERE edition_size=1)t;
+SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft_v WHERE edition_size=1
+-- all empty templates
+UNION ALL
+SELECT 
+	NULL,NULL,NULL,NULL,
+	blocknum,
+	block_timestamp,
+	null,
+	template_id,
+	schema_id,
+	collection_id,	
+	NULL,
+	edition_size,
+	transferable,	
+	burnable,	
+	NULL,null,null,null,NULL,NULL,
+	name,
+	media,
+	media_type,
+	media_preview, 	
+	null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,FLOOR(RANDOM()*(-1 - -999999999))::bigint,t1.block_timestamp,null,null
+FROM (SELECT * FROM soonmarket_template_v WHERE template_id not in (SELECT DISTINCT template_id from atomicassets_asset WHERE template_id IS NOT NULL)))t;
 
 COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent row, creators)';
 
