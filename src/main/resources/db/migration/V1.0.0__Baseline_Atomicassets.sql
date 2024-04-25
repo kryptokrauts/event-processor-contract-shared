@@ -190,12 +190,24 @@ t1.global_sequence,
 t1.blocknum,
 t1.block_timestamp,
 t1.asset_id,
-t2.template_id,
+t1.template_id,
 t1.collection_id,
 t1.type,
 t1.data
 FROM soonmarket_realtime_event t1
-LEFT JOIN soonmarket_realtime_event_bundle t2 ON t1.global_sequence=t2.global_sequence AND t1.asset_id=t2.asset_id;
+UNION 
+SELECT 
+t1.id,
+t1.global_sequence,
+t1.blocknum,
+t1.block_timestamp,
+b1.asset_id,
+t1.template_id,
+t1.collection_id,
+t1.type,
+t1.data
+FROM soonmarket_realtime_event_bundle b1
+LEFT JOIN soonmarket_realtime_event t1 ON t1.global_sequence=b1.global_sequence;
 
 COMMENT ON VIEW public.soonmarket_realtime_event_asset_v IS 'View to retrieve realtime events for single assets';
 
