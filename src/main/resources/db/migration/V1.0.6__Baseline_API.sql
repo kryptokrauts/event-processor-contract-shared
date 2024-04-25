@@ -500,23 +500,28 @@ SELECT NULL,NULL,NULL,NULL, * FROM soonmarket_nft_v WHERE edition_size=1
 UNION ALL
 SELECT 
 	NULL,NULL,NULL,NULL,
-	blocknum,
-	block_timestamp,
+	t1.blocknum,
+	t1.block_timestamp,
 	null,
 	template_id,
-	schema_id,
-	collection_id,	
+	t1.schema_id,
+	t1.collection_id,	
 	NULL,
 	edition_size,
 	transferable,	
 	burnable,	
 	NULL,null,null,null,NULL,NULL,
-	name,
+	t1.name,
 	media,
 	media_type,
-	media_preview, 	
+	media_preview,
+	t2.name,
+	t2.image,
+	t2.collection_fee,
+	t2.creator,
 	null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,FLOOR(RANDOM()*(-1 - -999999999))::bigint,t1.block_timestamp,null,null
-FROM (SELECT * FROM soonmarket_template_v WHERE template_id not in (SELECT DISTINCT template_id from atomicassets_asset WHERE template_id IS NOT NULL)))t;
+FROM (SELECT * FROM soonmarket_template_v WHERE template_id not in (SELECT DISTINCT template_id from atomicassets_asset WHERE template_id IS NOT NULL))t1
+LEFT JOIN soonmarket_collection_v t2 ON t1.collection_id = t2.collection_id)t;
 
 COMMENT ON VIEW soonmarket_manageable_nft_v IS 'View for manageable NFTs (parent row, creators)';
 
