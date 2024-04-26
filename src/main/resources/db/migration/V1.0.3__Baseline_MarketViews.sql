@@ -71,7 +71,6 @@ COMMENT ON VIEW public.soonmarket_auction_running_v IS 'Basic aggregation auf au
 ----------------------------------
 
 CREATE OR replace VIEW soonmarket_listing_valid_v as
-WITH valid_sales AS (
 SELECT 
 	t1.sale_id,
 	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID,
@@ -80,8 +79,9 @@ FROM atomicmarket_sale t1
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
 LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current
 WHERE NOT EXISTS(SELECT 1 from atomicmarket_sale_state t2 where t1.sale_id=t2.sale_id)
-GROUP BY t1.sale_id
-)
+GROUP BY t1.sale_id;
+
+CREATE OR replace VIEW soonmarket_listing_open_v as
 SELECT 
 	t2.blocknum,
 	t2.block_timestamp,
@@ -98,7 +98,7 @@ SELECT
 	bundle_size,
 	t2.seller,
 	t3.index
-FROM valid_sales t1
+FROM soonmarket_listing_valid_v t1
 INNER JOIN atomicmarket_sale t2 ON t1.sale_id=t2.sale_id
 INNER JOIN atomicmarket_sale_asset t3 ON t1.sale_id=t3.sale_id
 LEFT JOIN soonmarket_exchange_rate_latest_v er ON t2.token = er.token_symbol

@@ -3,11 +3,7 @@
 -- Buyoffer
 ----------------------------------
 
-CREATE OR REPLACE VIEW soonmarket_buyoffer_open_v AS
-WITH config as (
-SELECT maker_fee+taker_fee as market_fee FROM atomicmarket_config ORDER BY id DESC LIMIT 1	
-),
-valid_offers AS (
+CREATE OR REPLACE VIEW soonmarket_buyoffer_valid_v AS
 SELECT 
 	t1.buyoffer_id,
 	BOOL_AND(COALESCE(t4.owner = t1.seller,FALSE)) AS VALID,
@@ -16,7 +12,11 @@ FROM atomicmarket_buyoffer t1
 INNER JOIN atomicmarket_buyoffer_asset t3 ON t1.buyoffer_id=t3.buyoffer_id
 LEFT JOIN atomicassets_asset_owner_log t4 ON t3.asset_id=t4.asset_id AND t4.current
 WHERE NOT EXISTS(SELECT 1 from atomicmarket_buyoffer_state t2 where t1.buyoffer_id=t2.buyoffer_id)
-GROUP BY t1.buyoffer_id
+GROUP BY t1.buyoffer_id;
+
+CREATE OR REPLACE VIEW soonmarket_buyoffer_open_v AS
+WITH config as (
+SELECT maker_fee+taker_fee as market_fee FROM atomicmarket_config ORDER BY id DESC LIMIT 1	
 )
 SELECT 
 	gen_random_uuid() AS id,
@@ -45,7 +45,7 @@ SELECT
 	config.market_fee,
 	t5.shielded,
 	t5.blacklisted
-FROM config, valid_offers v
+FROM config, soonmarket_buyoffer_valid_v v
 LEFT JOIN atomicmarket_buyoffer t1 ON v.buyoffer_id = t1.buyoffer_id
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
@@ -274,7 +274,7 @@ CREATE OR REPLACE VIEW soonmarket_nft_detail_v AS
 	t3.auction_id,
 	t4.promotion_type
 FROM soonmarket_asset_v t1
-LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_valid_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
+LEFT JOIN (select max(listing_id) AS listing_id,asset_id from soonmarket_listing_open_v t2 where not bundle GROUP BY asset_id)t2 ON t1.asset_id=t2.asset_id AND NOT t1.burned
 LEFT JOIN (select max(auction_Id) as auction_id,asset_id from soonmarket_auction_base_v t3 where active group by asset_id)t3 ON t1.asset_id=t3.asset_id AND NOT t1.burned
 LEFT JOIN soonmarket_promotion_v t4 ON t4.promotion_object_id = t3.auction_id::text AND t4.promotion_object = 'auction' AND promotion_type='gold';
 
@@ -350,7 +350,7 @@ SELECT
 INTO soonmarket_nft
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
-left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id  
+left JOIN soonmarket_listing_open_v t8 on t1.asset_id=t8.asset_id  
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
 LEFT JOIN soonmarket_exchange_rate_historic_v t11
 	ON t9.token=t11.token_symbol 
@@ -626,7 +626,7 @@ CREATE OR REPLACE VIEW soonmarket_edition_listings_v AS
 	listing_royalty,
 	bundle_size,
 	listings.index
-FROM soonmarket_listing_valid_v listings
+FROM soonmarket_listing_open_v listings
 LEFT JOIN soonmarket_asset_base_v t2 ON listings.asset_id=t2.asset_id
 ORDER BY t2.SERIAL asc;
 COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all listings for a given edition/template';
@@ -955,6 +955,136 @@ FROM (
 LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE promotion_type='silver' AND promotion_end_timestamp >= floor(EXTRACT(epoch FROM now())))t2 ON TRUE;
 
 ----------------------------------------------------------
+-- open tasks
+----------------------------------------------------------
+
+CREATE OR REPLACE VIEW soonmarket_open_task_count_v as
+SELECT SUM(cnt), account AS cnt
+FROM (
+SELECT  
+	COUNT(*) AS cnt,
+	buyer AS account
+from atomicmarket_auction_claim_log t1
+LEFT JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
+WHERE CURRENT and claimed_by_buyer = FALSE AND t2.state=3
+GROUP BY buyer
+UNION ALL
+SELECT
+	COUNT(*),
+	t3.seller AS account
+from atomicmarket_auction_claim_log t1
+LEFT JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t1.auction_id=t3.auction_id
+WHERE CURRENT and claimed_by_seller = FALSE AND t2.state=4
+GROUP BY seller
+UNION ALL
+SELECT 
+	COUNT(*),
+	t1.seller
+FROM atomicmarket_sale t1
+JOIN soonmarket_listing_valid_v t2 ON t1.sale_id=t2.sale_id
+WHERE NOT burned AND NOT VALID
+GROUP BY seller
+UNION ALL
+SELECT 
+	COUNT(*),
+	t1.buyer
+FROM atomicmarket_buyoffer t1
+JOIN soonmarket_buyoffer_valid_v t2 ON t1.buyoffer_id=t2.buyoffer_id
+WHERE NOT burned AND NOT VALID
+GROUP BY buyer
+)t
+GROUP BY account;
+
+--
+
+DROP VIEW soonmarket_open_task_v;
+CREATE OR REPLACE VIEW soonmarket_open_task_v as
+SELECT 
+	gen_random_uuid () as id,
+	t1.*,
+	t2.collection_id,
+	t2.collection_name,
+	t2.collection_image,
+	t2.shielded,
+	t2.template_id,
+	t2.asset_name,
+	t2.asset_media,
+	t2.asset_media_type,
+	t2.asset_media_preview,
+	t2.edition_size,
+	t2.serial,
+	t2.owner
+FROM (
+SELECT  
+	t2.block_timestamp,
+	t1.auction_id,
+	NULL::bigint AS listing_id,
+	NULL::bigint AS buyoffer_id,
+	'auction_end_claim_nfts' AS task_type,
+	t3.primary_asset_id AS asset_id,
+	t3.bundle,
+	t3.bundle_size,
+	buyer AS account,
+	t2.winning_bid AS price,
+	t3.token
+FROM atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t1.auction_id=t3.auction_id
+WHERE ((CURRENT and claimed_by_buyer = FALSE) OR claimed_by_buyer = NULL) AND t2.state=3
+UNION ALL
+SELECT
+	t2.block_timestamp,
+	t1.auction_id,
+	NULL,
+	NULL,
+	'auction_end_zero_bids',
+	t3.primary_asset_id AS asset_id,
+	t3.bundle,
+	t3.bundle_size,
+	seller AS account,
+	t3.price,
+	t3.token
+from atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t1.auction_id=t3.auction_id
+WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller) AND t2.state=4
+UNION ALL
+SELECT 
+	t1.block_timestamp,
+	NULL,
+	t1.sale_id,	
+	NULL,
+	'invalid_listing',
+	t1.primary_asset_id,
+	t1.bundle,
+	t1.bundle_size,
+	t1.seller,
+	t1.price,
+	t1.token
+FROM atomicmarket_sale t1
+JOIN soonmarket_listing_valid_v t2 ON t1.sale_id=t2.sale_id
+WHERE NOT burned AND NOT VALID
+UNION ALL
+SELECT 
+	t1.block_timestamp,
+	NULL,		
+	NULL,
+	t1.buyoffer_id,
+	'invalid_offer',
+	t1.primary_asset_id,
+	t1.bundle,
+	t1.bundle_size,
+	t1.buyer,
+	t1.price,
+	t1.token
+FROM atomicmarket_buyoffer t1
+JOIN soonmarket_buyoffer_valid_v t2 ON t1.buyoffer_id=t2.buyoffer_id
+WHERE NOT burned AND NOT valid
+)t1
+LEFT JOIN soonmarket_asset_v t2 ON t1.asset_id=t2.asset_id;
+
+----------------------------------------------------------
 -- insert statement to renew MyNFTs / MyProfile NFTs table
 ----------------------------------------------------------
 
@@ -1031,7 +1161,7 @@ COALESCE (t9.bundle,false) as last_sold_for_bundle,
 	t8.listing_royalty
 FROM asset_owner t1
 left JOIN soonmarket_auction_base_v t7 ON t1.asset_id=t7.asset_id AND active 
-left JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id and NOT t8.bundle
+left JOIN soonmarket_listing_open_v t8 on t1.asset_id=t8.asset_id and NOT t8.bundle
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
 LEFT JOIN soonmarket_exchange_rate_historic_v t11
 	ON t9.token=t11.token_symbol 
@@ -1066,7 +1196,7 @@ COALESCE (t9.bundle,false) as last_sold_for_bundle,
 	t8.listing_price,
 	t8.listing_royalty
 FROM asset_owner t1
-inner JOIN soonmarket_listing_valid_v t8 on t1.asset_id=t8.asset_id and t8.bundle=true and t8.index=1
+inner JOIN soonmarket_listing_open_v t8 on t1.asset_id=t8.asset_id and t8.bundle=true and t8.index=1
 LEFT JOIN soonmarket_last_sold_for_asset_v t9 ON t1.asset_id=t9.asset_id
 LEFT JOIN soonmarket_exchange_rate_historic_v t11
 	ON t9.token=t11.token_symbol 
