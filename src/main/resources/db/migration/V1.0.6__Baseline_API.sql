@@ -998,7 +998,6 @@ GROUP BY account;
 
 --
 
-DROP VIEW soonmarket_open_task_v;
 CREATE OR REPLACE VIEW soonmarket_open_task_v as
 SELECT 
 	gen_random_uuid () as id,
