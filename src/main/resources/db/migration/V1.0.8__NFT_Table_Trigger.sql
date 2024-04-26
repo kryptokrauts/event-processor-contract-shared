@@ -9,9 +9,11 @@ BEGIN
 	RAISE WARNING '[% - auction_id %] Execution of trigger started at %', TG_NAME, NEW.auction_id, clock_timestamp();
 
 -- soonmarket_nft: setting promotion end to auction end
-	UPDATE soonmarket_promotion SET promotion_end_timestamp = NEW.end_time WHERE promotion_object = 'auction' AND promotion_end_timestamp IS NULL and promotion_object_id = NEW.auction_id;
+	UPDATE soonmarket_promotion SET promotion_end_timestamp = NEW.end_time WHERE promotion_object = 'auction' AND promotion_end_timestamp IS NULL and promotion_object_id = NEW.auction_id::text;
 	
 	RAISE WARNING '[% - auction_id %] Execution of trigger took % ms', TG_NAME, NEW.auction_id, (floor(EXTRACT(epoch FROM clock_timestamp())*1000) - floor(EXTRACT(epoch FROM now()))*1000);
+
+	RETURN NEW;
 
 END;
 $$ LANGUAGE plpgsql;
