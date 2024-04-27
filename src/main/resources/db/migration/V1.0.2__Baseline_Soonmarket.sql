@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
     collection_id TEXT NOT NULL,
     reporter TEXT NULL,
 		reporter_comment TEXT NULL,		
-    reviewer TEXT NOT NULL,
+    reviewer TEXT NULL,
 		reviewer_comment TEXT NULL,		
 		report_cid TEXT NULL,
 		skip_basic_check BOOLEAN NULL,
