@@ -29,7 +29,23 @@ LEFT JOIN atomicassets_template_state t2 ON t1.template_id = t2.template_id;
 -- collections
 ----------------------------------
 
-CREATE VIEW soonmarket_collection_v AS                                            
+CREATE OR REPLACE VIEW soonmarket_collection_base_v AS                                            
+SELECT
+	v1.blacklisted,   
+	v1.shielded,
+	t1.creator,
+	t3.royalty,   
+	t1.collection_id,
+	t2.name AS collection_name,
+	t2.image AS collection_image
+FROM atomicassets_collection t1
+LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id AND t2.current
+LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id AND t3.current
+LEFT JOIN soonmarket_collection_audit_info_v v1 ON t1.collection_id = v1.collection_id;
+
+--
+
+CREATE OR REPLACE VIEW soonmarket_collection_v AS                                            
 SELECT                                                                            
 t1.blocknum AS blocknum,                                                          
 GREATEST(t1.blocknum, t2.blocknum,t3.blocknum,t4.blocknum) AS blocknum_updated,   
@@ -59,10 +75,6 @@ FROM atomicassets_collection t1
 LEFT JOIN atomicassets_collection_data_log t2 ON t1.collection_id = t2.collection_id and t2.current
 LEFT JOIN atomicassets_collection_royalty_log t3 ON t1.collection_id = t3.collection_id and t3.current
 LEFT JOIN atomicassets_collection_account_log t4 ON t1.collection_id = t4.collection_id and t4.current                         
-LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id           
-LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id 
-LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id           
-LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id
 LEFT JOIN soonmarket_collection_stats_mv st1 ON t1.collection_id = st1.collection_id
 LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collection_id;
 
@@ -311,6 +323,7 @@ SELECT
 	t1.seller,
 	t1.buyer,
 	t1.bundle,
+	t1.bundle_size,
 	t1.token,
 	t1.price,
 	t1.memo,
@@ -367,7 +380,9 @@ SELECT
 	t4.owner,
 	t1.bundle,
 	t1.memo,
-	t1.receiver
+	t1.receiver,
+	t1.collection_id,
+	t1.sender
 FROM atomicassets_transfer t1
 LEFT JOIN atomicassets_transfer_asset t2 ON t1.transfer_id=t2.transfer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;

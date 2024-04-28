@@ -1006,6 +1006,7 @@ SELECT
 	t2.collection_name,
 	t2.collection_image,
 	t2.shielded,
+	t2.blacklisted,
 	t2.template_id,
 	t2.asset_name,
 	t2.asset_media,

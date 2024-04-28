@@ -671,9 +671,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER atomicassets_asset_serial_tr
+CREATE OR REPLACE TRIGGER atomicassets_asset_serial_tr
 BEFORE INSERT ON public.atomicassets_asset
-FOR EACH ROW EXECUTE FUNCTION atomicassets_asset_auto_increment_serial_f();
+FOR EACH ROW 
+WHEN (NEW.template_id = -1 OR NEW.template_id is null)
+EXECUTE FUNCTION atomicassets_asset_auto_increment_serial_f();
 
 COMMENT ON TABLE public.atomicassets_asset IS 'Store general asset (NFT) information';
 COMMENT ON COLUMN public.atomicassets_asset.receiver IS 'Store account who received this NFT';

@@ -34,6 +34,35 @@ END;
 $BODY$;
 
 ----------------------------------
+-- account notifications 
+----------------------------------
+
+CREATE TABLE IF NOT EXISTS public.soonmarket_notification
+(
+    id bigint NOT NULL,
+    global_sequence bigint,
+    blocknum bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+    action_id bigint NOT NULL,
+    action_type text NOT NULL,
+    account text NOT NULL,
+    acknowledged boolean NOT NULL DEFAULT false,
+    acknowledged_date bigint,
+    PRIMARY KEY (id)
+)
+TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS soonmarket_notification_account
+    ON public.soonmarket_notification USING btree
+    (account ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS soonmarket_notification_ts
+    ON public.soonmarket_notification USING btree
+    (block_timestamp, global_sequence)
+    TABLESPACE pg_default;		
+
+----------------------------------
 -- account 
 ----------------------------------
 
