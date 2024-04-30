@@ -1021,6 +1021,23 @@ SELECT
 	t1.auction_id,
 	NULL::bigint AS listing_id,
 	NULL::bigint AS buyoffer_id,
+	'auction_sold_claim_nfts' AS task_type,
+	t3.primary_asset_id AS asset_id,
+	t3.bundle,
+	t3.bundle_size,
+	seller AS account,
+	t2.winning_bid AS price,
+	t3.token
+FROM atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t1.auction_id=t3.auction_id
+WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller = NULL) AND t2.state=3	
+UNION ALL
+SELECT  
+	t2.block_timestamp,
+	t1.auction_id,
+	NULL::bigint AS listing_id,
+	NULL::bigint AS buyoffer_id,
 	'auction_end_claim_nfts' AS task_type,
 	t3.primary_asset_id AS asset_id,
 	t3.bundle,
