@@ -806,7 +806,7 @@ UNION ALL
   WHERE (t2.state = 3)
 UNION ALL
  	SELECT 
-		'offer',
+		'buyoffer',
 		t2.buyoffer_id,
 		t1.buyer,
 		t1.collection_id,
@@ -889,7 +889,7 @@ UNION ALL
   WHERE (t2.state = 3)
 UNION ALL
  	SELECT 
-		'offer',
+		'buyoffer',
 		t1.buyoffer_id,
 		t1.primary_asset_id,
 		t2.block_timestamp,
