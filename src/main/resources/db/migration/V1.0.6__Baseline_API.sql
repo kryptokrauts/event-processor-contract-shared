@@ -793,7 +793,7 @@ UNION ALL
 		t1.collection_id,
 		t1.primary_asset_id,
 		t1.seller,
-		t2.block_timestamp,
+		t3.block_timestamp,
 		t1.token,
 		t2.winning_bid,
 		t2.maker_market_fee,
@@ -803,7 +803,8 @@ UNION ALL
 		t1.bundle_size
 	FROM (atomicmarket_auction_state t2
 	LEFT JOIN atomicmarket_auction t1 ON ((t1.auction_id = t2.auction_id)))
-  WHERE (t2.state = 3)
+	LEFT JOIN atomicmarket_auction_bid_log t3 ON t2.auction_id=t3.auction_id	
+  WHERE (t2.state = 3 AND t3.current)
 UNION ALL
  	SELECT 
 		'buyoffer',
@@ -874,7 +875,7 @@ UNION ALL
 		'auction', 
 		t1.auction_id,
 		t1.primary_asset_id,
-		t2.block_timestamp,
+		t3.block_timestamp,
 		t1.token,
 		t2.winning_bid,
 		t2.maker_market_fee,
@@ -886,7 +887,8 @@ UNION ALL
 		t2.buyer
 	FROM (atomicmarket_auction_state t2
 	LEFT JOIN atomicmarket_auction t1 ON ((t1.auction_id = t2.auction_id)))
-  WHERE (t2.state = 3)
+	LEFT JOIN atomicmarket_auction_bid_log t3 ON t2.auction_id=t3.auction_id	
+  WHERE (t2.state = 3 AND t3.current)
 UNION ALL
  	SELECT 
 		'buyoffer',
