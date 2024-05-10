@@ -662,7 +662,7 @@ CREATE INDEX IF NOT EXISTS idx_asset_immutable_data
 CREATE OR REPLACE FUNCTION atomicassets_asset_auto_increment_serial_f()
 RETURNS TRIGGER AS $$
 BEGIN
-		IF NEW.template_id IS NOT NULL THEN
+		IF NEW.template_id IS NOT NULL OR NEW.template_id != -1 THEN
     	NEW.serial := COALESCE((SELECT MAX(serial) FROM public.atomicassets_asset WHERE template_id = NEW.template_id), 0) + 1;
 		ELSE
 			NEW.serial := 1;
@@ -674,7 +674,6 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER atomicassets_asset_serial_tr
 BEFORE INSERT ON public.atomicassets_asset
 FOR EACH ROW 
-WHEN (NEW.template_id = -1 OR NEW.template_id is null)
 EXECUTE FUNCTION atomicassets_asset_auto_increment_serial_f();
 
 COMMENT ON TABLE public.atomicassets_asset IS 'Store general asset (NFT) information';
