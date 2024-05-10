@@ -6,7 +6,6 @@ import com.kryptokrauts.shared.contract.types.ResetEvent;
 import contracts.event_log;
 import contracts.node_sync_status_event;
 import contracts.reset;
-import io.quarkus.runtime.Quarkus;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.eclipse.microprofile.reactive.messaging.Channel;
@@ -56,33 +55,26 @@ public class DefaultHandler extends BaseHandler {
    * @param event
    */
   public void handleResetEvent(ResetEvent event, String context) {
-    try {
+    BaseHandler.logger.warnf(
+        "Handling incoming reset event of type '%s' occurred at blocknum %d",
+        event.getReset_type(), event.getReset_blocknum());
+
+    reset reset = new reset();
+    reset.setContext(context);
+    reset.setBlocknum(event.getReset_blocknum());
+    reset.setTimestamp(event.getTimestamp());
+    reset.setDetails(event.getDetails());
+    reset.setResetType(event.getReset_type());
+    reset.setCleanDatabase(event.getClean_database() != null ? event.getClean_database() : false);
+    reset.setCleanAfterBlocknum(event.getRestart_at_block());
+
+    if (reset.getCleanDatabase()) {
       BaseHandler.logger.warnf(
-          "Handling incoming reset event of type '%s' occurred at blocknum %d",
-          event.getReset_type(), event.getReset_blocknum());
-
-      reset reset = new reset();
-      reset.setContext(context);
-      reset.setBlocknum(event.getReset_blocknum());
-      reset.setTimestamp(event.getTimestamp());
-      reset.setDetails(event.getDetails());
-      reset.setResetType(event.getReset_type());
-      reset.setCleanDatabase(event.getClean_database() != null ? event.getClean_database() : false);
-      reset.setCleanAfterBlocknum(event.getRestart_at_block());
-
-      if (reset.getCleanDatabase()) {
-        BaseHandler.logger.warnf(
-            "Reset event clean database flag is set, cleaning database after blocknum %s",
-            reset.getCleanAfterBlocknum());
-      }
-
-      this.emitTransformedMessage(reset, this.resetEmitter);
-    } finally {
-      BaseHandler.logger.warnf(
-          "Stopping contract-processor because reset event was received at blocknum %s",
-          event.getReset_blocknum());
-      Quarkus.asyncExit(-1);
+          "Reset event clean database flag is set, cleaning database after blocknum %s",
+          reset.getCleanAfterBlocknum());
     }
+
+    this.emitTransformedMessage(reset, this.resetEmitter);
   }
 
   /**
