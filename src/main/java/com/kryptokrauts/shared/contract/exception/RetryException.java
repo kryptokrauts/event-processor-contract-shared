@@ -1,4 +1,4 @@
-package com.kryptokrauts.sync.exception;
+package com.kryptokrauts.shared.contract.exception;
 
 public class RetryException extends RuntimeException {
 
