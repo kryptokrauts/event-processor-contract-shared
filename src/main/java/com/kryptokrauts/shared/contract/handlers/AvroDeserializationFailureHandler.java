@@ -1,4 +1,4 @@
-package com.kryptokrauts.sync;
+package com.kryptokrauts.shared.contract.handlers;
 
 import io.smallrye.common.annotation.Identifier;
 import io.smallrye.mutiny.Uni;
