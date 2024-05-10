@@ -179,10 +179,10 @@ s1.skip_reason,
 s1.report_cid,
 s1.reviewer
 FROM atomicassets_collection t1                                                   
-LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id AND b1.reporter_comment!='__delete__'
-LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id AND b2.reporter_comment!='__delete__'
-LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id AND s1.reporter_comment!='__delete__'
-LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id AND s2.reporter_comment!='__delete__';
+LEFT JOIN nft_watch_blacklist b1 ON t1.collection_id = b1.collection_id AND (b1.reporter_comment IS NULL OR b1.reporter_comment!='__delete__')
+LEFT JOIN soonmarket_internal_blacklist b2 ON t1.collection_id = b2.collection_id AND (b2.reporter_comment IS NULL OR b2.reporter_comment!='__delete__')
+LEFT JOIN nft_watch_shielding s1 ON t1.collection_id = s1.collection_id AND (s1.reporter_comment IS NULL OR s1.reporter_comment = '__delete__')
+LEFT JOIN soonmarket_internal_shielding s2 ON t1.collection_id = s2.collection_id AND (s2.reporter_comment IS NULL OR s2.reporter_comment!='__delete__');
 
 -- Trigger function for deleting entries from blacklist / shielding
 
