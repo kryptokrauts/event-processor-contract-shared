@@ -719,12 +719,13 @@ COMMENT ON VIEW soonmarket_edition_info_v IS 'Get serial info for a template';
 CREATE OR REPLACE VIEW soonmarket_auction_bids_v AS
 SELECT 
 	t1.auction_id,
-	t1.block_timestamp AS bid_date,
+	t1.blocknum,
+	t1.block_timestamp AS block_timestamp,
 	t1.current_bid,
 	t2.collection_fee AS royalty,
 	t2.token,
 	t1.bidder,
-	t1.updated_end_time,
+	COALESCE(t2.end_time, t1.updated_end_time) AS end_time,
 	t1.bid_number
 FROM atomicmarket_auction_bid_log t1
 LEFT JOIN atomicmarket_auction t2 ON t1.auction_id=t2.auction_id

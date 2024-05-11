@@ -190,7 +190,7 @@ SELECT
 	t5.asset_name,
 	t5.asset_media,
 	t5.asset_media_type,
-	t5.asset_media_preview	
+	t5.asset_media_preview
 FROM atomicmarket_auction t1
 left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
