@@ -720,7 +720,7 @@ CREATE OR REPLACE VIEW soonmarket_auction_bids_v AS
 SELECT 
 	t1.auction_id,
 	t1.blocknum,
-	t1.block_timestamp AS block_timestamp,
+	t1.block_timestamp AS bid_date,
 	t1.current_bid,
 	t2.collection_fee AS royalty,
 	t2.token,
