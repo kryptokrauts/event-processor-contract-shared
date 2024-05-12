@@ -662,7 +662,7 @@ CREATE INDEX IF NOT EXISTS idx_asset_immutable_data
 CREATE OR REPLACE FUNCTION atomicassets_asset_auto_increment_serial_f()
 RETURNS TRIGGER AS $$
 BEGIN
-		IF NEW.template_id IS NOT NULL OR NEW.template_id != -1 THEN
+		IF NEW.template_id IS NOT NULL AND NEW.template_id != -1 THEN
     	NEW.serial := COALESCE((SELECT MAX(serial) FROM public.atomicassets_asset WHERE template_id = NEW.template_id), 0) + 1;
 		ELSE
 			NEW.serial := 1;
