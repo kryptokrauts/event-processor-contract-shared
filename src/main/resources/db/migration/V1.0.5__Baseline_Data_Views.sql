@@ -382,7 +382,8 @@ SELECT
 	t1.memo,
 	t1.receiver,
 	t1.collection_id,
-	t1.sender
+	t1.sender,
+	t1.bundle_size
 FROM atomicassets_transfer t1
 LEFT JOIN atomicassets_transfer_asset t2 ON t1.transfer_id=t2.transfer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id;

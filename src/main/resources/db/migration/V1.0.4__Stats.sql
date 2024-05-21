@@ -47,16 +47,21 @@ SELECT
 	account,
 	t1.collection_id,
 	total-burned AS total,
-	burned,
+	total AS minted,
+	burned AS burned,
 	COUNT(*) AS num_nfts,
 	round_to_decimals_f((COUNT(*)::DOUBLE PRECISION / (total-burned)) * 100) AS owned,
-	t3.num_bought,
-	t4.num_sold
+	coalesce(t3.num_bought,0) AS num_bought,
+	coalesce(t4.num_sold,0) AS num_sold,
+	COALESCE(t5.num_sent,0) AS num_sent,
+	COALESCE(t6.num_received,0) AS num_received
 FROM collection_owner t1
 LEFT JOIN collection_total t2 ON t1.collection_id=t2.collection_id
 LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_bought, buyer, collection_id from soonmarket_sale_stats_v GROUP BY collection_id,buyer)t3 ON t1.collection_id=t3.collection_id AND buyer=t1.account
 LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_sold, seller, collection_id from soonmarket_sale_stats_v GROUP BY collection_id,seller)t4 ON t1.collection_id=t4.collection_id AND seller=t1.account
-GROUP BY t1.collection_id, account,total,burned,num_bought,num_sold;
+LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_sent, sender, collection_id from soonmarket_transfer_v WHERE receiver NOT IN ('atomicmarket','token.escrow') GROUP BY collection_id,sender)t5 ON t1.collection_id=t5.collection_id AND sender=t1.account
+LEFT JOIN (select SUM(COALESCE(bundle_size,1)) AS num_received, receiver, collection_id from soonmarket_transfer_v WHERE sender NOT IN ('atomicmarket','token.escrow') GROUP BY collection_id,receiver)t6 ON t1.collection_id=t6.collection_id AND receiver=t1.account
+GROUP BY t1.collection_id, account,total,burned,num_bought,num_sold,num_sent,num_received;
 
 COMMENT ON MATERIALIZED VIEW soonmarket_collection_holder_mv IS 'List of collection holders and stats';
 
