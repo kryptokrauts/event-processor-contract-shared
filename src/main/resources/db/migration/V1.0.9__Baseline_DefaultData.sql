@@ -511,8 +511,7 @@ INSERT INTO public.nft_watch_shielding VALUES
 	(241332783, 1708328664500, '552442544245', null, null, 'chrisgrc', null, 'QmVytmqedwrSVTjnZX8DRa2c9iMybMeHWoX6GF93KsgpjW', true, 'APP Migration'),
 	(242419793, 1708872476000, '553215434233', null, null, 'chrisgrc', null, 'QmSCiCL1FZ1PwnmRDNR92isPNcTZ8UcDDUamAouir92rN8', true, 'APP Migration'),
 	(241342647, 1708333597500, '554115334445', null, null, 'stonebreaker', null, 'QmaQfm17xo6QU1rX5ajVF1jnDSmMiX9Wk52GpPY9hzro8z', true, 'APP migration'),
-	(241367139, 1708345843500, '554535235535', null, null, 'chrisgrc', null, 'QmZEzovrSm36Cs91LCrc3oFoXPdPm3cf7ppAU2q21hor6q', true, 'APP Migration'),
-	(248861116, 1712095132000, '555112131351', 'robocats', null, 'chrisgrc', null, 'QmV68BEGy1cfJKN7ceprRY8sdnbfirN6njXYR5owf3S3r4', false, null),
+	(241367139, 1708345843500, '554535235535', null, null, 'chrisgrc', null, 'QmZEzovrSm36Cs91LCrc3oFoXPdPm3cf7ppAU2q21hor6q', true, 'APP Migration'),	
 	(241337980, 1708331263000, 'p5oe5lhvl152', null, null, 'chrisgrc', null, 'Qmb6nFyA4XsGDReyJbjqcw9dx5n7Dkf9vGnWucYUkdbATX', true, 'APP Migration'),
 	(241363727, 1708344137500, 'soonbadges23', null, null, 'chrisgrc', null, 'QmV181dDM5L2ws5g4tx3bHDVidRRjxqMpUCE2DRednRvAi', true, 'APP Migration'),
 	(241329904, 1708327225000, 'zvapir55jvu4', null, null, 'stonebreaker', null, 'Qme15oHRygqRsWs62CZPPM6t4QdQ9RVfmpzoRTWsgb3omh', true, 'APP Migration');
