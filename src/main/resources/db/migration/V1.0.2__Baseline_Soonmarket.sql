@@ -38,8 +38,8 @@ $BODY$;
 ----------------------------------
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_notification
-(
-    id bigint NOT NULL,
+(    
+		id bigserial,
     global_sequence bigint,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.soonmarket_notification
     account text NOT NULL,
     acknowledged boolean NOT NULL DEFAULT false,
     acknowledged_date bigint,
-    PRIMARY KEY (id)
+    PRIMARY KEY (global_sequence,action_type,account)
 )
 TABLESPACE pg_default;
 
@@ -60,7 +60,12 @@ CREATE INDEX IF NOT EXISTS soonmarket_notification_account
 CREATE INDEX IF NOT EXISTS soonmarket_notification_ts
     ON public.soonmarket_notification USING btree
     (block_timestamp, global_sequence)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS soonmarket_notification_action_type
+    ON public.soonmarket_notification USING btree
+    (action_type)
+    TABLESPACE pg_default;				
 
 ----------------------------------
 -- account 
