@@ -161,6 +161,33 @@ CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
 )
 TABLESPACE pg_default;
 
+--
+
+CREATE TABLE IF NOT EXISTS public.t_audit_event_log
+(
+		id bigserial,
+    blocknum bigint NOT NULL,
+    block_timestamp bigint NOT NULL,
+		global_sequence bigint PRIMARY KEY,
+    transaction_id text NOT NULL,    
+    type text NOT NULL,		
+    data jsonb NULL    
+)
+TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_t_audit_event_log_type
+    ON public.t_atomicassets_event_log USING btree
+    (type ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_t_audit_event_log_type_data
+    ON public.t_atomicassets_event_log USING gin
+    (data)
+    TABLESPACE pg_default;			
+
+COMMENT ON TABLE public.t_audit_event_log IS 'Store all raw actions';
+
+
 -- 
 
 CREATE OR REPLACE VIEW soonmarket_collection_audit_info_v AS

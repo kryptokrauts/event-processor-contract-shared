@@ -9,4 +9,8 @@ public class RetryException extends RuntimeException {
   public RetryException(Exception e) {
     super(e);
   }
+
+  public RetryException(String msg) {
+    super(msg);
+  }
 }
