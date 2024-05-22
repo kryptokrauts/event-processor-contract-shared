@@ -4,4 +4,8 @@ public class EntityNotYetAvailableException extends RuntimeException {
   public EntityNotYetAvailableException(String msg) {
     super(msg);
   }
+
+  public EntityNotYetAvailableException() {
+    super();
+  }
 }
