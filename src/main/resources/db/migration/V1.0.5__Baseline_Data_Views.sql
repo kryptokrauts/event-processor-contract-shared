@@ -139,7 +139,9 @@ SELECT
 	t5.asset_name,
 	t5.asset_media,
 	t5.asset_media_type,
-	t5.asset_media_preview
+	t5.asset_media_preview,
+	t1.maker_marketplace,
+	t2.taker_marketplace
 FROM atomicmarket_auction t1
 left JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_auction_bid_log t4 ON t4.auction_id=t1.auction_id AND t4.current
@@ -280,7 +282,9 @@ SELECT
 	t5.maker_market_fee,
 	t5.taker_market_fee,
 	t1.collection_id,
-	t5.decline_memo
+	t5.decline_memo,
+	t1.maker_marketplace,
+	t5.taker_marketplace
 FROM atomicmarket_buyoffer t1
 LEFT JOIN atomicmarket_buyoffer_asset t2 ON t1.buyoffer_id=t2.buyoffer_id
 LEFT JOIN soonmarket_asset_base_v t4 ON t2.asset_id=t4.asset_id
