@@ -7,6 +7,7 @@ public enum NotificationType {
   auction_outbid,
   nft_received,
   royalty_decreased,
+  royalty_received,
   royalty_received_auction,
   royalty_received_buyoffer,
   royalty_received_listing
