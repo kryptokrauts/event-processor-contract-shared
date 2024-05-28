@@ -14,6 +14,7 @@ import com.kryptokrauts.shared.model.common._Asset;
 import com.kryptokrauts.shared.model.common._Collection;
 import com.kryptokrauts.shared.model.common._PriceInfo;
 import com.kryptokrauts.shared.model.realtime._Notification;
+import com.kryptokrauts.shared.model.realtime.notification._AuctionOutbidNotification;
 import com.kryptokrauts.shared.model.realtime.notification._OfferNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyDecreasedNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyReceivedNotification;
@@ -30,7 +31,7 @@ public class NotificationTransformService {
         case "offer_declined" -> toOfferNotification(entity, true);
         case "offer_received" -> toOfferNotification(entity, false);
         case "offer_accepted" -> toOfferNotification(entity, false);
-        case "auction_outbid" -> null;
+        case "auction_outbid" -> toAuctionOutbidNotification(entity);
         case "nft_received" -> toTransferNotification(entity);
         case "royalty_decreased" -> toRoyaltyDecreasedNotification(entity);
         case "royalty_received_listing" -> toRoyaltyReceivedNotification(entity, "listing");
@@ -117,9 +118,7 @@ public class NotificationTransformService {
       AuctionBaseEntity auction = AuctionBaseEntity.findByAuctionId(entity.getActionId());
       priceInfo =
           BaseMapper.buildPriceInfo(
-              auction.getAuctionToken(),
-              auction.getAuctionCurrentBid(),
-              auction.getAuctionRoyalty());
+              auction.getToken(), auction.getCurrentBid(), auction.getCollectionFee());
       bundle = auction.getBundle();
       collection = CollectionBaseView.findById(auction.getCollectionId());
       asset = AssetBaseEntity.toModel(auction.getAssetId());
@@ -136,6 +135,25 @@ public class NotificationTransformService {
         .royaltyAmount(priceInfo)
         .type(NotificationType.royalty_received)
         .marketType(type)
+        .build();
+  }
+
+  private _AuctionOutbidNotification toAuctionOutbidNotification(NotificationEntity entity) {
+    AuctionBaseEntity auction = AuctionBaseEntity.findByAuctionId(entity.getActionId());
+    return _AuctionOutbidNotification.builder()
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
+        .asset(AssetBaseEntity.toModel(auction.getAssetId()))
+        .bundleSize(auction.getBundleSize())
+        .bidder(BaseMapper.mapAccount(auction.getHighestBidder()))
+        .collection(CollectionBaseView.toModel(auction.getCollectionId()))
+        .notificationId(entity.getId())
+        .auctionId(entity.getActionId())
+        .currentBid(
+            BaseMapper.buildPriceInfo(
+                auction.getToken(), auction.getCurrentBid(), auction.getCollectionFee()))
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
+        .type(NotificationType.auction_outbid)
         .build();
   }
 }

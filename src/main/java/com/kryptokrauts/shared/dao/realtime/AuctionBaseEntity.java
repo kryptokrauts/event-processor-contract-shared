@@ -15,13 +15,11 @@ public class AuctionBaseEntity extends PanacheEntityBase {
 
   @Id private Long assetId;
 
-  private Long primaryAssetId;
+  private String token;
 
-  private String auctionToken;
+  private Double collectionFee;
 
-  private Double auctionCurrentBid;
-
-  private Double auctionRoyalty;
+  private Double currentBid;
 
   private Boolean bundle;
 
@@ -30,6 +28,8 @@ public class AuctionBaseEntity extends PanacheEntityBase {
   private String collectionId;
 
   private Integer index;
+
+  private String highestBidder;
 
   public static AuctionBaseEntity findByAuctionId(Long auctionId) {
     return AuctionBaseEntity.find("auctionId = ?1 AND index=1", auctionId).firstResult();

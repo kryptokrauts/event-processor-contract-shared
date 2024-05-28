@@ -13,7 +13,7 @@ public class OpenListingBaseEntity extends PanacheEntityBase {
 
   @Id private Long listingId;
 
-  @Id private Long assetId;
+  private Long assetId;
 
   private Double listingRoyalty;
 
@@ -22,6 +22,7 @@ public class OpenListingBaseEntity extends PanacheEntityBase {
   private Integer bundleSize;
 
   private String collectionId;
+
   private Integer index;
 
   public static OpenListingBaseEntity findByListingId(Long listingId) {
