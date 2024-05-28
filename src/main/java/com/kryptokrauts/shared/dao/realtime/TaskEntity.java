@@ -56,7 +56,10 @@ public class TaskEntity extends PanacheEntityBase {
 
   public static TaskEntity findById(Long actionId, TaskType actionType, String account) {
     return TaskEntity.find(
-            "actionId = ?1 AND actionType = ?2 AND account =?3", actionId, actionType, account)
+            "actionId = ?1 AND taskType = ?2 AND account =?3",
+            actionId,
+            actionType.toString(),
+            account)
         .firstResult();
   }
 }
