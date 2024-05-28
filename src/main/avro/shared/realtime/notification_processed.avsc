@@ -1,10 +1,10 @@
 {
 	"type": "record",
-	"name": "notification",
+	"name": "notification_processed",
 	"namespace": "contracts",
 	"fields": [
 		{
-			"name": "global_sequence",
+			"name": "notification_id",
 			"type": "long"
 		},
 		{
@@ -16,16 +16,16 @@
 			"type": "long"
 		},
 		{
-			"name": "action_id",
-			"type": "long"
-		},
-		{
-			"name": "action_type",
-			"type": "string"
-		},
-		{
 			"name": "account",
 			"type": "string"
-		}
+		},
+		{
+			"name": "type",
+			"type": "string"
+		},
+		{
+			"name": "data",
+			"type": "string"
+		}	
 	]
 }

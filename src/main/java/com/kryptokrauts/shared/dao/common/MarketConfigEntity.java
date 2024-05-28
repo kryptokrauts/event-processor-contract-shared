@@ -1,8 +1,8 @@
 package com.kryptokrauts.shared.dao.common;
 
 import com.kryptokrauts.shared.model.common._MarketConfig;
-
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.panache.common.Sort;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import lombok.Getter;
@@ -18,6 +18,10 @@ public class MarketConfigEntity extends PanacheEntityBase {
   private Double taker_fee;
 
   private Double auctionMinBidIncrease;
+
+  public static MarketConfigEntity findLatest() {
+    return MarketConfigEntity.findAll(Sort.descending("id")).firstResult();
+  }
 
   public _MarketConfig toModel() {
     if (this.id != null) {

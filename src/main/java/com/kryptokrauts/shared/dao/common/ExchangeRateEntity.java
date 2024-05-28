@@ -12,4 +12,8 @@ public class ExchangeRateEntity extends PanacheEntityBase {
   @Id private String tokenSymbol;
 
   private Double usd;
+
+  public static ExchangeRateEntity findByToken(String token) {
+    return ExchangeRateEntity.find("tokenSymbol = ?1", token).firstResult();
+  }
 }

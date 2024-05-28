@@ -1,9 +1,15 @@
-package com.kryptokrauts.shared.dao.realtime;
+package com.kryptokrauts.shared.service;
 
 import com.kryptokrauts.shared.BaseMapper;
 import com.kryptokrauts.shared.contract.types.NotificationType;
 import com.kryptokrauts.shared.dao.common.AssetBaseEntity;
 import com.kryptokrauts.shared.dao.common.CollectionBaseView;
+import com.kryptokrauts.shared.dao.realtime.AuctionBaseEntity;
+import com.kryptokrauts.shared.dao.realtime.BuyofferBaseEntity;
+import com.kryptokrauts.shared.dao.realtime.ListingBaseEntity;
+import com.kryptokrauts.shared.dao.realtime.NotificationEntity;
+import com.kryptokrauts.shared.dao.realtime.OpenListingBaseEntity;
+import com.kryptokrauts.shared.dao.realtime.TransferEntity;
 import com.kryptokrauts.shared.model.common._Asset;
 import com.kryptokrauts.shared.model.common._Collection;
 import com.kryptokrauts.shared.model.common._PriceInfo;
@@ -12,119 +18,89 @@ import com.kryptokrauts.shared.model.realtime.notification._OfferNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyDecreasedNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyReceivedNotification;
 import com.kryptokrauts.shared.model.realtime.notification._TransferNotification;
-import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import lombok.Getter;
+import jakarta.enterprise.context.ApplicationScoped;
 import org.apache.commons.lang3.StringUtils;
 
-@Getter
-@Entity
-@Table(name = "soonmarket_notification")
-public class NotificationEntity extends PanacheEntityBase {
+@ApplicationScoped
+public class NotificationTransformService {
 
-  @Id private Long globalSequence;
-
-  @Id private String actionType;
-
-  @Id private String account;
-
-  private Long id;
-
-  private Long blockTimestamp;
-
-  private Long actionId;
-
-  private Boolean acknowledged;
-
-  private Long acknowledgedDate;
-
-  public static NotificationEntity findById(
-      Long globalSequence, String actionType, String account) {
-    return NotificationEntity.find(
-            "globalSequence = ?1 AND actionType = ?2 AND account =?3",
-            globalSequence,
-            actionType,
-            account)
-        .firstResult();
-  }
-
-  public _Notification toModel() {
-    if (id != null && StringUtils.isNotBlank(actionType)) {
-      return switch (actionType) {
-        case "offer_declined" -> toOfferNotification(true);
-        case "offer_received" -> toOfferNotification(false);
-        case "offer_accepted" -> toOfferNotification(false);
+  public _Notification toModel(NotificationEntity entity) {
+    if (entity.getActionId() != null && StringUtils.isNotBlank(entity.getActionType())) {
+      return switch (entity.getActionType()) {
+        case "offer_declined" -> toOfferNotification(entity, true);
+        case "offer_received" -> toOfferNotification(entity, false);
+        case "offer_accepted" -> toOfferNotification(entity, false);
         case "auction_outbid" -> null;
-        case "nft_received" -> toTransferNotification();
-        case "royalty_decreased" -> toRoyaltyDecreasedNotification();
-        case "royalty_received_listing" -> toRoyaltyReceivedNotification("listing");
-        case "royalty_received_buyoffer" -> toRoyaltyReceivedNotification("buyoffer");
-        case "royalty_received_auction" -> toRoyaltyReceivedNotification("auction");
+        case "nft_received" -> toTransferNotification(entity);
+        case "royalty_decreased" -> toRoyaltyDecreasedNotification(entity);
+        case "royalty_received_listing" -> toRoyaltyReceivedNotification(entity, "listing");
+        case "royalty_received_buyoffer" -> toRoyaltyReceivedNotification(entity, "buyoffer");
+        case "royalty_received_auction" -> toRoyaltyReceivedNotification(entity, "auction");
         default -> null;
       };
     }
     return null;
   }
 
-  private _OfferNotification toOfferNotification(boolean useDeclineMemo) {
-    BuyofferBaseEntity buyoffer = BuyofferBaseEntity.findByBuyofferId(actionId);
+  private _OfferNotification toOfferNotification(
+      NotificationEntity entity, boolean useDeclineMemo) {
+    BuyofferBaseEntity buyoffer = BuyofferBaseEntity.findByBuyofferId(entity.getActionId());
     return _OfferNotification.builder()
-        .acknowlegded(acknowledged)
-        .acknowlegdedDate(BaseMapper.mapDate(acknowledgedDate))
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
         .asset(AssetBaseEntity.toModel(buyoffer.getAssetId()))
         .bundleSize(buyoffer.getBundleSize())
         .buyer(BaseMapper.mapAccount(buyoffer.getBuyer()))
         .seller(BaseMapper.mapAccount(buyoffer.getSeller()))
         .collection(CollectionBaseView.toModel(buyoffer.getCollectionId()))
-        .notificationId(id)
-        .buyofferId(actionId)
+        .notificationId(entity.getId())
+        .buyofferId(entity.getActionId())
         .price(buyoffer.getPrice().toModel())
-        .receivedDate(BaseMapper.mapDate(blockTimestamp))
-        .type(NotificationType.valueOf(actionType))
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
+        .type(NotificationType.valueOf(entity.getActionType()))
         .message(useDeclineMemo ? buyoffer.getDeclineMemo() : buyoffer.getMemo())
         .build();
   }
 
-  private _TransferNotification toTransferNotification() {
-    TransferEntity transfer = TransferEntity.findByTransferId(actionId);
+  private _TransferNotification toTransferNotification(NotificationEntity entity) {
+    TransferEntity transfer = TransferEntity.findByTransferId(entity.getActionId());
     return _TransferNotification.builder()
-        .acknowlegded(acknowledged)
-        .acknowlegdedDate(BaseMapper.mapDate(acknowledgedDate))
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
         .asset(AssetBaseEntity.toModel(transfer.getPrimaryAssetId()))
         .bundle(transfer.getBundle())
         .from(BaseMapper.mapAccount(transfer.getSender()))
         .collection(CollectionBaseView.toModel(transfer.getCollectionId()))
-        .notificationId(id)
+        .notificationId(entity.getId())
         .transferId(transfer.getTransferId())
-        .receivedDate(BaseMapper.mapDate(blockTimestamp))
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
         .type(NotificationType.nft_received)
         .build();
   }
 
-  private _RoyaltyDecreasedNotification toRoyaltyDecreasedNotification() {
-    OpenListingBaseEntity listing = OpenListingBaseEntity.findById(actionId);
+  private _RoyaltyDecreasedNotification toRoyaltyDecreasedNotification(NotificationEntity entity) {
+    OpenListingBaseEntity listing = OpenListingBaseEntity.findById(entity.getActionId());
     _Collection collection = CollectionBaseView.toModel(listing.getCollectionId());
     return _RoyaltyDecreasedNotification.builder()
-        .acknowlegded(acknowledged)
-        .acknowlegdedDate(BaseMapper.mapDate(acknowledgedDate))
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
         .collection(collection)
-        .notificationId(id)
-        .receivedDate(BaseMapper.mapDate(blockTimestamp))
+        .notificationId(entity.getId())
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
         .oldValue(listing.getListingRoyalty())
         .newValue(collection.getRoyalty())
         .type(NotificationType.royalty_decreased)
         .build();
   }
 
-  private _RoyaltyReceivedNotification toRoyaltyReceivedNotification(String type) {
+  private _RoyaltyReceivedNotification toRoyaltyReceivedNotification(
+      NotificationEntity entity, String type) {
     _PriceInfo priceInfo = null;
     boolean bundle = false;
     CollectionBaseView collection = null;
     _Asset asset = null;
     if ("listing".equals(type)) {
-      ListingBaseEntity listing = ListingBaseEntity.findByListingId(actionId);
+      ListingBaseEntity listing = ListingBaseEntity.findByListingId(entity.getActionId());
       priceInfo =
           BaseMapper.buildPriceInfo(
               listing.getToken(), listing.getPrice(), listing.getCollectionFee());
@@ -132,13 +108,13 @@ public class NotificationEntity extends PanacheEntityBase {
       collection = CollectionBaseView.findById(listing.getCollectionId());
       asset = AssetBaseEntity.toModel(listing.getPrimaryAssetId());
     } else if ("buyoffer".equals(type)) {
-      BuyofferBaseEntity buyoffer = BuyofferBaseEntity.findByBuyofferId(actionId);
+      BuyofferBaseEntity buyoffer = BuyofferBaseEntity.findByBuyofferId(entity.getActionId());
       priceInfo = buyoffer.getPrice().toModel();
       bundle = buyoffer.getBundle();
       collection = CollectionBaseView.findById(buyoffer.getCollectionId());
       asset = AssetBaseEntity.toModel(buyoffer.getAssetId());
     } else if ("auction".equals(type)) {
-      AuctionBaseEntity auction = AuctionBaseEntity.findByAuctionId(actionId);
+      AuctionBaseEntity auction = AuctionBaseEntity.findByAuctionId(entity.getActionId());
       priceInfo =
           BaseMapper.buildPriceInfo(
               auction.getAuctionToken(),
@@ -150,12 +126,12 @@ public class NotificationEntity extends PanacheEntityBase {
     }
 
     return _RoyaltyReceivedNotification.builder()
-        .acknowlegded(acknowledged)
-        .acknowlegdedDate(BaseMapper.mapDate(acknowledgedDate))
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
         .collection(collection.toModel())
         .asset(asset)
-        .notificationId(id)
-        .receivedDate(BaseMapper.mapDate(blockTimestamp))
+        .notificationId(entity.getId())
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
         .bundle(bundle)
         .royaltyAmount(priceInfo)
         .type(NotificationType.royalty_received)
