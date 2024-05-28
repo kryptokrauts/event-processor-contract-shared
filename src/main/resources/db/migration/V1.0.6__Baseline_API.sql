@@ -1021,9 +1021,7 @@ SELECT
 FROM (
 SELECT  
 	t2.block_timestamp,
-	t1.auction_id,
-	NULL::bigint AS listing_id,
-	NULL::bigint AS buyoffer_id,
+	t1.auction_id AS action_id,
 	'auction_sold_claim_funds' AS task_type,
 	t3.primary_asset_id AS asset_id,
 	t3.bundle,
@@ -1039,8 +1037,6 @@ UNION ALL
 SELECT  
 	t2.block_timestamp,
 	t1.auction_id,
-	NULL::bigint AS listing_id,
-	NULL::bigint AS buyoffer_id,
 	'auction_won_claim_nfts' AS task_type,
 	t3.primary_asset_id AS asset_id,
 	t3.bundle,
@@ -1056,8 +1052,6 @@ UNION ALL
 SELECT
 	t2.block_timestamp,
 	t1.auction_id,
-	NULL,
-	NULL,
 	'auction_end_zero_bids',
 	t3.primary_asset_id AS asset_id,
 	t3.bundle,
@@ -1072,9 +1066,7 @@ WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller) AND t2.stat
 UNION ALL
 SELECT 
 	t1.block_timestamp,
-	NULL,
 	t1.sale_id,	
-	NULL,
 	'invalid_listing',
 	t1.primary_asset_id,
 	t1.bundle,
@@ -1088,8 +1080,6 @@ WHERE NOT burned AND NOT VALID
 UNION ALL
 SELECT 
 	t1.block_timestamp,
-	NULL,		
-	NULL,
 	t1.buyoffer_id,
 	'invalid_offer',
 	t1.primary_asset_id,
