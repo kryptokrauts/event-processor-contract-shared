@@ -1,4 +1,4 @@
-package com.kryptokrauts.shared.contract.types;
+package com.kryptokrauts.shared.enums;
 
 public enum NotificationType {
   offer_received,

@@ -1,9 +1,9 @@
 package com.kryptokrauts.shared.dao.realtime;
 
 import com.kryptokrauts.shared.BaseMapper;
-import com.kryptokrauts.shared.contract.types.NotificationType;
 import com.kryptokrauts.shared.dao.common.AssetBaseEntity;
 import com.kryptokrauts.shared.dao.common.CollectionBaseView;
+import com.kryptokrauts.shared.enums.NotificationType;
 import com.kryptokrauts.shared.model.common._Asset;
 import com.kryptokrauts.shared.model.common._Collection;
 import com.kryptokrauts.shared.model.common._PriceInfo;
