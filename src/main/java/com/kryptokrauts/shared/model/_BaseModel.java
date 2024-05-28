@@ -1,7 +1,7 @@
 package com.kryptokrauts.shared.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kryptokrauts.soonmarket.service.common.RandomNumberHolder;
+import com.kryptokrauts.shared.RandomNumberHolder;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
