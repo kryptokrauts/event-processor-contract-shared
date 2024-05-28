@@ -4,7 +4,7 @@
 	"namespace": "contracts",
 	"fields": [
 		{
-			"name": "notification_id",
+			"name": "id",
 			"type": "long"
 		},
 		{
@@ -20,7 +20,7 @@
 			"type": "string"
 		},
 		{
-			"name": "type",
+			"name": "context",
 			"type": "string"
 		},
 		{
