@@ -304,7 +304,7 @@ CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_historic_v
     era.symbol,
     era.name,
     er._timestamp,
-    er.utc_date,
+    (LEFT(er.utc_date, 10) || ' 00:00:00')::varchar(64) AS utc_date,
     er.usd,
     er.eur,
     era.token_symbol
