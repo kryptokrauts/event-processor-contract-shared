@@ -604,10 +604,12 @@ LEFT JOIN soonmarket_collection_audit_info_v v1 on t1.collection_id=v1.collectio
 
 CREATE VIEW soonmarket_edition_auctions_v as
 SELECT 
-	*
-FROM soonmarket_auction_v
+	t1.*,
+	coalesce(auction_current_bid,auction_starting_bid) * er.usd as price_usd
+FROM soonmarket_auction_v t1
+LEFT JOIN soonmarket_exchange_rate_latest_v er ON auction_token = er.token_symbol
 WHERE active
-ORDER BY SERIAL asc;
+ORDER BY price_usd,serial asc;
 
 COMMENT ON VIEW soonmarket_edition_auctions_v IS 'Get all auctions for a given edition/template';
 
@@ -623,12 +625,13 @@ CREATE OR REPLACE VIEW soonmarket_edition_listings_v AS
 	seller,
 	listing_token,
 	listing_price,
+	listing_price_usd as price_usd,
 	listing_royalty,
 	bundle_size,
 	listings.index
 FROM soonmarket_listing_open_v listings
 LEFT JOIN soonmarket_asset_base_v t2 ON listings.asset_id=t2.asset_id
-ORDER BY t2.SERIAL asc;
+ORDER BY price_usd,serial asc;
 COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all listings for a given edition/template';
 
 --
@@ -655,7 +658,8 @@ SELECT
 	NULL::DOUBLE precision as auction_current_bid,
 	NULL::int as num_bids,
 	NULL as highest_bidder,
-	NULL ::INT as state
+	NULL ::INT as STATE,
+	price_usd
 FROM soonmarket_edition_listings_v WHERE bundle_size IS NOT NULL AND 
 	(template_id,listing_id,INDEX) IN(SELECT template_id,listing_id,min(INDEX) 
 	FROM soonmarket_edition_listings_v v1 
@@ -682,11 +686,13 @@ SELECT
 	auction_current_bid,
 	num_bids,
 	highest_bidder,
-	state
+	STATE,
+	price_usd
 FROM soonmarket_edition_auctions_v WHERE bundle_size IS NOT NULL AND
 	(template_id,auction_id,INDEX) IN(SELECT template_id,auction_id,min(INDEX) 
 	FROM soonmarket_edition_auctions_v v1 
-	WHERE v1.template_id=template_id AND v1.auction_id=auction_id GROUP BY template_id,auction_id);
+	WHERE v1.template_id=template_id AND v1.auction_id=auction_id GROUP BY template_id,auction_id)
+	ORDER BY price_usd;
 
 COMMENT ON VIEW soonmarket_edition_listings_v IS 'Get all bundles for a given edition/template';
 
