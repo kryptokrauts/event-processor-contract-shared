@@ -10,7 +10,7 @@ import org.apache.kafka.common.header.Headers;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-@Identifier("avro-serialization-fallback-handler")
+@Identifier("avro-serialization-failure-handler")
 public class AvroSerializationFailureHandler
     implements SerializationFailureHandler<SpecificRecordBase> {
 
