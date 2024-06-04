@@ -970,23 +970,36 @@ LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE p
 CREATE OR REPLACE VIEW soonmarket_open_task_count_v as
 SELECT SUM(cnt), account AS cnt
 FROM (
+-- auction_sold_claim_funds
+SELECT  
+	COUNT(*) AS cnt,
+	t3.seller AS account
+from atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t2.auction_id=t3.auction_id
+WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller IS NULL) AND t2.state=3	
+GROUP BY seller
+UNION ALL
+-- auction_won_claim_nfts
 SELECT  
 	COUNT(*) AS cnt,
 	buyer AS account
-from atomicmarket_auction_claim_log t1
-LEFT JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
-WHERE CURRENT and claimed_by_buyer = FALSE AND t2.state=3
+from atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+WHERE ((CURRENT and claimed_by_buyer = FALSE) OR claimed_by_buyer IS NULL) AND t2.state=3
 GROUP BY buyer
 UNION ALL
+-- auction_end_zero_bids
 SELECT
 	COUNT(*),
 	t3.seller AS account
-from atomicmarket_auction_claim_log t1
-LEFT JOIN atomicmarket_auction_state t2 ON t1.auction_id=t2.auction_id
-LEFT JOIN atomicmarket_auction t3 ON t1.auction_id=t3.auction_id
-WHERE CURRENT and claimed_by_seller = FALSE AND t2.state=4
+from atomicmarket_auction_state t2
+LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
+LEFT JOIN atomicmarket_auction t3 ON t2.auction_id=t3.auction_id
+WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller IS NULL) AND t2.state=4
 GROUP BY seller
 UNION ALL
+-- invalid_listing
 SELECT 
 	COUNT(*),
 	t1.seller
@@ -995,6 +1008,7 @@ JOIN soonmarket_listing_valid_v t2 ON t1.sale_id=t2.sale_id
 WHERE NOT burned AND NOT VALID
 GROUP BY seller
 UNION ALL
+-- invalid_offer
 SELECT 
 	COUNT(*),
 	t1.buyer
