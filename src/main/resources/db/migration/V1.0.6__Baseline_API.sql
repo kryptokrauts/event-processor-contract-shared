@@ -968,7 +968,7 @@ LEFT JOIN LATERAL (SELECT COUNT(*) AS featured FROM soonmarket_promotion WHERE p
 ----------------------------------------------------------
 
 CREATE OR REPLACE VIEW soonmarket_open_task_count_v as
-SELECT SUM(cnt), account AS cnt
+SELECT SUM(cnt) as num_tasks, account
 FROM (
 -- auction_sold_claim_funds
 SELECT  
