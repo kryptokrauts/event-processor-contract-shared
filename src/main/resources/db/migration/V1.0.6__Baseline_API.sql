@@ -994,9 +994,9 @@ SELECT
 	COUNT(*),
 	t3.seller AS account
 from atomicmarket_auction_state t2
-LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_auction t3 ON t2.auction_id=t3.auction_id
-WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller IS NULL) AND t2.state=4
+LEFT JOIN atomicassets_asset_owner_log t1 ON t3.primary_asset_id = t1.asset_id and current
+WHERE t2.state=4 AND t1.owner='atomicmarket'
 GROUP BY seller
 UNION ALL
 -- invalid_listing
@@ -1080,9 +1080,9 @@ SELECT
 	t3.price,
 	t3.token
 from atomicmarket_auction_state t2
-LEFT JOIN atomicmarket_auction_claim_log t1 ON t1.auction_id=t2.auction_id
 LEFT JOIN atomicmarket_auction t3 ON t2.auction_id=t3.auction_id
-WHERE ((CURRENT and claimed_by_seller = FALSE) OR claimed_by_seller IS NULL) AND t2.state=4
+LEFT JOIN atomicassets_asset_owner_log t1 ON t3.primary_asset_id = t1.asset_id and current
+WHERE t2.state=4 AND t1.owner='atomicmarket'
 UNION ALL
 SELECT 
 	t1.block_timestamp,
