@@ -31,8 +31,6 @@ public class AuctionBaseEntity extends PanacheEntityBase {
 
   private String highestBidder;
 
-  private String owner;
-
   public static AuctionBaseEntity findByAuctionId(Long auctionId) {
     return AuctionBaseEntity.find("auctionId = ?1 AND index=1", auctionId).firstResult();
   }

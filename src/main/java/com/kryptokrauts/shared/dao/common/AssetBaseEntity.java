@@ -26,6 +26,8 @@ public class AssetBaseEntity extends PanacheEntityBase {
 
   private Long serial;
 
+  private String owner;
+
   public static _Asset toModel(Long assetId) {
     AssetBaseEntity asset = AssetBaseEntity.find("assetId = ?1", assetId).firstResult();
     if (asset != null) {
