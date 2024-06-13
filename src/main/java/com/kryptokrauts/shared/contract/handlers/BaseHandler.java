@@ -50,18 +50,27 @@ public abstract class BaseHandler {
   }
 
   protected <T> void emitTransformedMessage(T msg, Emitter<T> emitter) {
+    logger.tracef("Emitting message of dataset %s", msg.getClass());
     emitter.send(Message.of(msg).addMetadata(this.createHeader(msg.getClass().getSimpleName())));
+    logger.debugf("Emitted message of dataset %s", msg.getClass());
   }
 
   protected <T> void emitTransformedMessage(T msg, Emitter<T> emitter, String prefix) {
+    logger.tracef("Emitting message of dataset %s.%s", prefix, msg.getClass());
     emitter.send(
         Message.of(msg)
             .addMetadata(this.createHeader(prefix + "_" + msg.getClass().getSimpleName())));
+    logger.debugf("Emitted message of dataset %s", msg.getClass());
   }
 
   protected void logDebugStartHandleEvent(RawEvent event) {
     BaseHandler.logger.debugf(
         "Handle incoming '%s' event at blocknum %d", event.getType(), event.getBlocknum());
+  }
+
+  protected void logDebugEndHandleEvent(RawEvent event) {
+    BaseHandler.logger.debugf(
+        "Finished handle incoming '%s' event at blocknum %d", event.getType(), event.getBlocknum());
   }
 
   protected void copyProperties(Object dest, Object src) {
