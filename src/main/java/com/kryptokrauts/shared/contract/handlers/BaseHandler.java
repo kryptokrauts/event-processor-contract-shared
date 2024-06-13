@@ -28,8 +28,8 @@ public abstract class BaseHandler {
 
   protected void emitRealtimeMessage(RawEvent event, Map<String, Object> dataMap, String context)
       throws Exception {
-    BaseHandler.logger.debugf(
-        "Emitting realtime message for event '%s' at blocknum %d",
+    logger.tracef(
+        "Start emitting realtime message for event '%s' at blocknum %d",
         event.getType(), event.getBlocknum());
 
     realtime_event transformed = new realtime_event();
@@ -41,6 +41,10 @@ public abstract class BaseHandler {
     transformed.setGlobalSequence(event.getGlobal_sequence());
 
     this.emitTransformedMessage(transformed, realtimeEventEmitter);
+
+    logger.debugf(
+        "Finished emitting message for event '%s' at blocknum %d",
+        event.getType(), event.getBlocknum());
   }
 
   private OutgoingKafkaRecordMetadata<?> createHeader(String className) {
@@ -50,17 +54,17 @@ public abstract class BaseHandler {
   }
 
   protected <T> void emitTransformedMessage(T msg, Emitter<T> emitter) {
-    logger.tracef("Emitting message of dataset %s", msg.getClass());
+    logger.tracef("Start emitting message of dataset %s", msg.getClass());
     emitter.send(Message.of(msg).addMetadata(this.createHeader(msg.getClass().getSimpleName())));
-    logger.debugf("Emitted message of dataset %s", msg.getClass());
+    logger.debugf("Finished emitting message of dataset %s", msg.getClass());
   }
 
   protected <T> void emitTransformedMessage(T msg, Emitter<T> emitter, String prefix) {
-    logger.tracef("Emitting message of dataset %s.%s", prefix, msg.getClass());
+    logger.tracef("Start emitting message of dataset %s.%s", prefix, msg.getClass());
     emitter.send(
         Message.of(msg)
             .addMetadata(this.createHeader(prefix + "_" + msg.getClass().getSimpleName())));
-    logger.debugf("Emitted message of dataset %s", msg.getClass());
+    logger.debugf("Finished emitting message of dataset %s", msg.getClass());
   }
 
   protected void logDebugStartHandleEvent(RawEvent event) {
