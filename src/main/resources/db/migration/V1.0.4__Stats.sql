@@ -103,154 +103,106 @@ CREATE UNIQUE INDEX pk_soonmarket_collection_stats_mv ON soonmarket_collection_s
 -- Timeframed Collection Stats
 ----------------------------------
 
-CREATE MATERIALIZED VIEW soonmarket_collection_stats_7d_mv as
-WITH stats AS(
-SELECT
-	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
-	COUNT(*) AS total_sales,
-	vol.collection_id
-	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
-AND her.token_symbol=vol.token
-WHERE 
-	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '7 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-GROUP BY vol.collection_id
-)
-SELECT 
-t1.* ,
-c2.name AS collection_name,
-c2.image as collection_image,
-c1.creator,
-a1.shielded,
-a1.blacklisted,
-a1.blacklist_date,
-a1.blacklist_reason,
-a1.blacklist_actor,
-round_to_decimals_f(t3.listing_price_usd) AS floor_price_usd,
-t4.total as unique_holders,
-(SELECT COUNT(DISTINCT listing_id) FROM soonmarket_listing_open_v v WHERE v.collection_id=t1.collection_id) AS num_listed,
-(SELECT COUNT(*) FROM atomicassets_asset_owner_log WHERE current and not burned and asset_id in (select asset_id from atomicassets_asset WHERE collection_id=t1.collection_id)) AS num_assets
-FROM stats t1
-LEFT JOIN atomicassets_collection c1 ON t1.collection_id=c1.collection_id 
-LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_id AND c2.current
-LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
-LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_open_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
-LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
+CREATE OR REPLACE FUNCTION create_collection_stats_mv(time_interval INTERVAL, mv_name TEXT)
+RETURNS VOID AS $$
+DECLARE 
+	_condition varchar;
+BEGIN
+
+		IF time_interval IS NULL 
+			THEN _condition = '';
+		ELSE
+			_condition=format('WHERE vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - ''%s''::INTERVAL) AT TIME ZONE ''UTC'') * 1000)', time_interval);
+		END IF;
+
+    EXECUTE format('
+    CREATE MATERIALIZED VIEW %I AS
+    WITH stats AS (
+        SELECT
+            round_to_decimals_f(sum(her.usd * vol.price)) AS total_volume_usd,
+            COUNT(*) AS total_sales,
+            vol.collection_id
+        FROM soonmarket_sale_stats_v vol
+        LEFT JOIN soonmarket_exchange_rate_historic_v her 
+            ON her.utc_date = TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE ''UTC'', ''YYYY-MM-DD 00:00:00'')
+            AND her.token_symbol = vol.token
+        %s
+        GROUP BY vol.collection_id
+    ),
+    listing AS (
+        SELECT 
+            collection_id, 
+            MIN(listing_price_usd) AS floor_price_usd
+        FROM soonmarket_listing_open_v 
+        WHERE NOT bundle 
+        GROUP BY collection_id
+    ),
+    unique_holders AS (
+        SELECT 
+            collection_id, 
+            total AS unique_holders 
+        FROM soonmarket_collection_holder_mv
+    ),
+    num_listed_assets AS (
+        SELECT 
+            collection_id, 
+            COUNT(DISTINCT listing_id) AS num_listed
+        FROM soonmarket_listing_open_v 
+        GROUP BY collection_id
+    ),
+    num_assets AS (
+        SELECT 
+            collection_id, 
+            COUNT(*) AS num_assets
+        FROM atomicassets_asset_owner_log ao
+        JOIN atomicassets_asset a 
+            ON ao.asset_id = a.asset_id 
+        WHERE ao.current 
+            AND NOT ao.burned 
+        GROUP BY a.collection_id
+    )
+    SELECT DISTINCT ON (t1.collection_id)
+        t1.collection_id,
+        t1.total_volume_usd,
+        t1.total_sales,
+        c2.name AS collection_name, 
+        c2.image AS collection_image, 
+        c1.creator, 
+        a1.shielded, 
+        a1.blacklisted, 
+        a1.blacklist_date, 
+        a1.blacklist_reason, 
+        a1.blacklist_actor, 
+        round_to_decimals_f(t3.floor_price_usd) AS floor_price_usd, 
+        t4.unique_holders, 
+        t5.num_listed, 
+        t6.num_assets
+    FROM stats t1
+    LEFT JOIN atomicassets_collection c1 
+        ON t1.collection_id = c1.collection_id 
+    LEFT JOIN atomicassets_collection_data_log c2 
+        ON t1.collection_id = c2.collection_id 
+        AND c2.current
+    LEFT JOIN soonmarket_collection_audit_info_v a1 
+        ON t1.collection_id = a1.collection_id
+    LEFT JOIN listing t3 
+        ON t1.collection_id = t3.collection_id
+    LEFT JOIN unique_holders t4 
+        ON t1.collection_id = t4.collection_id
+    LEFT JOIN num_listed_assets t5 
+        ON t1.collection_id = t5.collection_id
+    LEFT JOIN num_assets t6 
+        ON t1.collection_id = t6.collection_id;', mv_name, _condition);
+    
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT create_collection_stats_mv(INTERVAL '7 days', 'soonmarket_collection_stats_7d_mv');
+SELECT create_collection_stats_mv(INTERVAL '30 days', 'soonmarket_collection_stats_30d_mv');
+SELECT create_collection_stats_mv(INTERVAL '180 days', 'soonmarket_collection_stats_180d_mv');
+SELECT create_collection_stats_mv(null, 'soonmarket_collection_stats_all_mv');
 
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_7d_mv ON soonmarket_collection_stats_7d_mv (collection_id);
-
---
-
-CREATE MATERIALIZED VIEW soonmarket_collection_stats_30d_mv as
-WITH stats AS(
-SELECT
-	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
-	COUNT(*) AS total_sales,
-	vol.collection_id
-	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
-AND her.token_symbol=vol.token
-WHERE 
-	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '30 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-GROUP BY vol.collection_id
-)
-SELECT 
-t1.* ,
-c2.name AS collection_name,
-c2.image as collection_image,
-c1.creator,
-a1.shielded,
-a1.blacklisted,
-a1.blacklist_date,
-a1.blacklist_reason,
-a1.blacklist_actor,
-round_to_decimals_f(t3.listing_price_usd) AS floor_price_usd,
-t4.total as unique_holders,
-(SELECT COUNT(DISTINCT listing_id) FROM soonmarket_listing_open_v v WHERE v.collection_id=t1.collection_id) AS num_listed,
-(SELECT COUNT(*) FROM atomicassets_asset_owner_log WHERE current and not burned and asset_id in (select asset_id from atomicassets_asset WHERE collection_id=t1.collection_id)) AS num_assets
-FROM stats t1
-LEFT JOIN atomicassets_collection c1 ON t1.collection_id=c1.collection_id 
-LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_id AND c2.current
-LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
-LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_open_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
-LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
-
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_30d_mv ON soonmarket_collection_stats_30d_mv (collection_id);
-
---
-
-CREATE MATERIALIZED VIEW soonmarket_collection_stats_180d_mv as
-WITH stats AS(
-SELECT
-	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
-	COUNT(*) AS total_sales,
-	vol.collection_id
-	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
-AND her.token_symbol=vol.token
-WHERE 
-	vol.block_timestamp >= floor(extract(epoch FROM (CURRENT_DATE - '180 day'::INTERVAL ) AT TIME ZONE 'UTC')*1000)
-GROUP BY vol.collection_id
-)
-SELECT 
-t1.* ,
-c2.name AS collection_name,
-c2.image as collection_image,
-c1.creator,
-a1.shielded,
-a1.blacklisted,
-a1.blacklist_date,
-a1.blacklist_reason,
-a1.blacklist_actor,
-round_to_decimals_f(t3.listing_price_usd) AS floor_price_usd,
-t4.total as unique_holders,
-(SELECT COUNT(DISTINCT listing_id) FROM soonmarket_listing_open_v v WHERE v.collection_id=t1.collection_id) AS num_listed,
-(SELECT COUNT(*) FROM atomicassets_asset_owner_log WHERE current and not burned and asset_id in (select asset_id from atomicassets_asset WHERE collection_id=t1.collection_id)) AS num_assets
-FROM stats t1
-LEFT JOIN atomicassets_collection c1 ON t1.collection_id=c1.collection_id 
-LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_id AND c2.current
-LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
-LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_open_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
-LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
-
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_180d_mv ON soonmarket_collection_stats_180d_mv (collection_id);
-
---
-
-CREATE MATERIALIZED VIEW soonmarket_collection_stats_all_mv as
-WITH stats AS(
-SELECT
-	round_to_decimals_f(sum(her.usd*price)) AS total_volume_usd,
-	COUNT(*) AS total_sales,
-	vol.collection_id
-	FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_historic_v her ON
-her.utc_date=TO_CHAR(TO_TIMESTAMP(vol.block_timestamp / 1000) AT TIME ZONE 'UTC', 'YYYY-MM-DD 00:00:00')
-AND her.token_symbol=vol.token
-GROUP BY vol.collection_id
-)
-SELECT 
-t1.* ,
-c2.name AS collection_name,
-c2.image as collection_image,
-c1.creator,
-a1.shielded,
-a1.blacklisted,
-a1.blacklist_date,
-a1.blacklist_reason,
-a1.blacklist_actor,
-round_to_decimals_f(t3.listing_price_usd) AS floor_price_usd,
-t4.total as unique_holders,
-(SELECT COUNT(DISTINCT listing_id) FROM soonmarket_listing_open_v v WHERE v.collection_id=t1.collection_id) AS num_listed,
-(SELECT COUNT(*) FROM atomicassets_asset_owner_log WHERE current and not burned and asset_id in (select asset_id from atomicassets_asset WHERE collection_id=t1.collection_id)) AS num_assets
-FROM stats t1
-LEFT JOIN atomicassets_collection c1 ON t1.collection_id=c1.collection_id 
-LEFT JOIN atomicassets_collection_data_log c2 ON t1.collection_id=c2.collection_id AND c2.current
-LEFT JOIN soonmarket_collection_audit_info_v a1 ON t1.collection_id=a1.collection_id
-LEFT JOIN LATERAL (SELECT listing_price_usd,listing_token, listing_price,listing_royalty from soonmarket_listing_open_v where t1.collection_id = collection_id AND NOT bundle ORDER BY listing_price_usd ASC LIMIT 1)t3 ON TRUE
-LEFT JOIN LATERAL (select total from soonmarket_collection_holder_mv WHERE t1.collection_id=collection_id LIMIT 1)t4 ON TRUE;
-
 CREATE UNIQUE INDEX pk_soonmarket_collection_stats_all_mv ON soonmarket_collection_stats_all_mv (collection_id);
