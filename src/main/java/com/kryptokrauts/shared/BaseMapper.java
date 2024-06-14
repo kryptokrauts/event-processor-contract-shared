@@ -120,4 +120,8 @@ public class BaseMapper {
   public static Double roundTo(Double value) {
     return roundTo(value, 2);
   }
+
+  public static Integer toZero(Integer value) {
+    return value != null ? value : 0;
+  }
 }
