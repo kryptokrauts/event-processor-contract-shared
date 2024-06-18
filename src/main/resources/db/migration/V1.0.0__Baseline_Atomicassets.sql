@@ -128,6 +128,7 @@ CREATE INDEX idx_soonmarket_realtime_event_data_to ON soonmarket_realtime_event 
 CREATE INDEX idx_soonmarket_realtime_event_data_creator ON soonmarket_realtime_event ((data ->> 'creator')); 
 CREATE INDEX idx_soonmarket_realtime_event_data_burnedby ON soonmarket_realtime_event ((data ->> 'burnedBy')); 
 CREATE INDEX idx_soonmarket_realtime_event_data_bidder ON soonmarket_realtime_event ((data ->> 'bidder')); 
+CREATE INDEX idx_soonmarket_realtime_event_data_mint_receiver ON soonmarket_realtime_event ((data ->> 'receiver')); 
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_type
     ON public.soonmarket_realtime_event USING btree
