@@ -4,6 +4,7 @@
 
 CREATE TABLE IF NOT EXISTS public.t_node_processor_sync_state
 (
+		id bigserial,
     timestamp bigint NOT NULL,
     processor text PRIMARY KEY,
     head_block bigint,
@@ -128,6 +129,7 @@ CREATE INDEX idx_soonmarket_realtime_event_data_to ON soonmarket_realtime_event 
 CREATE INDEX idx_soonmarket_realtime_event_data_creator ON soonmarket_realtime_event ((data ->> 'creator')); 
 CREATE INDEX idx_soonmarket_realtime_event_data_burnedby ON soonmarket_realtime_event ((data ->> 'burnedBy')); 
 CREATE INDEX idx_soonmarket_realtime_event_data_bidder ON soonmarket_realtime_event ((data ->> 'bidder')); 
+CREATE INDEX idx_soonmarket_realtime_event_data_mint_receiver ON soonmarket_realtime_event ((data ->> 'receiver')); 
 
 CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_type
     ON public.soonmarket_realtime_event USING btree
@@ -226,6 +228,7 @@ COMMENT ON VIEW public.soonmarket_realtime_event_asset_v IS 'View to retrieve re
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_offer
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,  
     offer_id bigint,
@@ -277,7 +280,8 @@ COMMENT ON TABLE public.atomicassets_offer_state_log IS 'Store state changes on 
 -- transfer tables
 ----------------------------------		
 CREATE TABLE IF NOT EXISTS public.atomicassets_transfer
-(		
+(	
+		id bigserial,	
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,    
  		transfer_id bigserial,
@@ -308,6 +312,7 @@ COMMENT ON TABLE public.atomicassets_transfer IS 'Store all "real" transfers (wi
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_transfer_asset
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     transfer_id bigint NOT NULL,
@@ -328,6 +333,7 @@ CREATE INDEX IF NOT EXISTS idx_atomicassets_transfer_asset_asset_id
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_collection
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id text PRIMARY KEY,
@@ -454,6 +460,7 @@ COMMENT ON TABLE public.atomicassets_collection_account_log IS 'Store collection
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_schema
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL, 
     schema_id text NOT NULL,
@@ -550,6 +557,7 @@ FOR EACH ROW EXECUTE FUNCTION atomicassets_schema_format_log_schema_merge_f();
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_template
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     template_id bigint NOT NULL,
@@ -593,6 +601,7 @@ COMMENT ON TABLE public.atomicassets_template IS 'Store general information abou
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_template_state
 (
+		id bigserial,
 		blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,  
     template_id bigint NOT NULL,		
@@ -632,6 +641,7 @@ COMMENT ON TRIGGER atomicassets_template_state_set_new_locked_at_supply_tr ON pu
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_asset
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,   
     asset_id bigint NOT NULL,
@@ -691,6 +701,7 @@ COMMENT ON COLUMN public.atomicassets_asset.minter IS 'User or contract which wa
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_asset_data
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,   
     asset_id bigint NOT NULL,	

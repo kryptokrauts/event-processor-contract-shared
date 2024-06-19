@@ -73,6 +73,7 @@ CREATE INDEX IF NOT EXISTS soonmarket_notification_action_type
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_profile
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     has_kyc boolean DEFAULT false,
@@ -96,6 +97,7 @@ TABLESPACE pg_default;
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_internal_shielding
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
@@ -109,6 +111,7 @@ TABLESPACE pg_default;
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_internal_blacklist
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
@@ -137,6 +140,7 @@ TABLESPACE pg_default;
 
 CREATE TABLE IF NOT EXISTS public.nft_watch_blacklist
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,
@@ -152,6 +156,7 @@ TABLESPACE pg_default;
 
 CREATE TABLE IF NOT EXISTS public.nft_watch_shielding
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     collection_id TEXT NOT NULL,

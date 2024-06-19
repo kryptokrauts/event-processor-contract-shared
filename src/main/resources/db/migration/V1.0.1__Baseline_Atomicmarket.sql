@@ -66,6 +66,7 @@ $$ LANGUAGE plpgsql;
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_sale
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,       
 		sale_id bigint NOT NULL,				
@@ -99,6 +100,7 @@ COMMENT ON TABLE public.atomicmarket_sale IS 'Store sales, every sale which has 
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_sale_state
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,       
 		sale_id bigint NOT NULL,		
@@ -134,6 +136,7 @@ COMMENT ON COLUMN public.atomicmarket_sale_state.state IS 'Sale state mapping: 2
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_sale_asset
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     sale_id bigint NOT NULL,
@@ -166,6 +169,7 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_asset_id
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction
 (
+		id bigserial,
     blocknum bigint,
     block_timestamp bigint,
     auction_id bigint NOT NULL,
@@ -201,6 +205,7 @@ COMMENT ON TABLE public.atomicmarket_auction IS 'Store auctions, every auction w
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_state
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     auction_id bigint NOT NULL,
@@ -232,6 +237,7 @@ COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapp
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_asset
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     auction_id bigint NOT NULL,
@@ -334,6 +340,7 @@ FOR EACH ROW EXECUTE FUNCTION atomicmarket_auction_claim_log_fill_f();
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     buyoffer_id bigint NOT NULL,
@@ -368,6 +375,7 @@ COMMENT ON TABLE public.atomicmarket_buyoffer IS 'Store buyoffers, every buyoffe
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer_state
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     buyoffer_id bigint,
@@ -398,6 +406,7 @@ COMMENT ON COLUMN public.atomicmarket_buyoffer_state.state IS 'Buyoffer state ma
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_buyoffer_asset
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
     buyoffer_id bigint NOT NULL,
@@ -511,6 +520,7 @@ COMMENT ON TABLE public.t_atomicmarket_reset_log IS 'Store reset events. Wheneve
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_token
 (
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,       
 		contract text NOT NULL,
@@ -576,6 +586,7 @@ COMMENT ON TABLE public.atomicmarket_config IS 'Store global market config';
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_marketplace
 (		
+		id bigserial,
     blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,
 	 	name text NOT NULL,     
