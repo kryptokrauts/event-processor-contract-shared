@@ -376,6 +376,7 @@ CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_gaps_v
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_promotion
 (		
+		id bigserial,
 		blocknum bigint NOT NULL,
     block_timestamp bigint NOT NULL,		
 		tx_id TEXT NOT NULL,

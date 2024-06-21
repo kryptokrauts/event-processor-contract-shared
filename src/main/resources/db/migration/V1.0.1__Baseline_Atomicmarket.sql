@@ -92,7 +92,12 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_seller
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_bundle
     ON public.atomicmarket_sale USING btree
     (bundle)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_id
+    ON public.atomicmarket_sale USING btree
+    (id)
+    TABLESPACE pg_default;				
 
 COMMENT ON TABLE public.atomicmarket_sale IS 'Store sales, every sale which has no corresponding entry in atomicmarket_sale_state is in listed state';		
 
@@ -122,6 +127,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_sale_id_buyer
     ON public.atomicmarket_sale_state USING btree
     (sale_id,buyer)
     TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_state_id
+    ON public.atomicmarket_sale_state USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 -- add trigger for market fees
 CREATE OR REPLACE TRIGGER atomicmarket_sale_state_fill_mtfees_tr
@@ -161,7 +171,13 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_sale_id
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_asset_id
     ON public.atomicmarket_sale_asset USING btree
     (asset_id)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_sale_asset_id
+    ON public.atomicmarket_sale_asset USING btree
+    (id)
     TABLESPACE pg_default;			
+
 
 ----------------------------------
 -- auction tables
@@ -199,6 +215,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_bundle
     (bundle)
     TABLESPACE pg_default;	
 
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_id
+    ON public.atomicmarket_auction USING btree
+    (id)
+    TABLESPACE pg_default;	
+
 COMMENT ON TABLE public.atomicmarket_auction IS 'Store auctions, every auction which has no corresponding entry in atomicmarket_auction_state is in open state';	
 
 --
@@ -229,6 +250,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_auctionid_state
     ON public.atomicmarket_auction_state USING btree
     (auction_id,state)
     TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_state_id
+    ON public.atomicmarket_auction_state USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 COMMENT ON TABLE public.atomicmarket_auction_state IS 'Store auction state change information';
 COMMENT ON COLUMN public.atomicmarket_auction_state.state IS 'Auction state mapping: 2=cancelled, 3=finished with bids, 4=finished without bids, 5=finished, waiting for irreversibility';		
@@ -264,6 +290,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_asset_asset_id
     (asset_id)
     TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_asset_id
+    ON public.atomicmarket_auction_asset USING btree
+    (id)
+    TABLESPACE pg_default;		
+
 --
 
 CREATE TABLE IF NOT EXISTS public.atomicmarket_auction_bid_log
@@ -292,6 +323,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_bid_log_auction_id
     ON public.atomicmarket_auction_bid_log USING btree
     (auction_id)
     TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_bid_log_id
+    ON public.atomicmarket_auction_bid_log USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 -- add trigger to set bid number and potential bump date
 CREATE OR REPLACE TRIGGER atomicmarket_auction_bid_log_tr
@@ -324,10 +360,19 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_claim_log_auction_id
     (auction_id)
     TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_auction_claim_log_id
+    ON public.atomicmarket_auction_claim_log USING btree
+    (id)
+    TABLESPACE pg_default;		
+
 -- add trigger to update current flag
 CREATE TRIGGER atomicmarket_event_auction_claim_log_tr
 BEFORE INSERT ON public.atomicmarket_auction_claim_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('auction_id');	
+
+CREATE TRIGGER atomicmarket_event_auction_claim_log_r_tr
+AFTER DELETE ON public.atomicmarket_auction_claim_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('auction_id');	
 
 CREATE TRIGGER atomicmarket_auction_claim_log_fill_tr
 BEFORE INSERT ON public.atomicmarket_auction_claim_log
@@ -369,6 +414,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_bundle
     (bundle)
     TABLESPACE pg_default;	
 
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_id
+    ON public.atomicmarket_buyoffer USING btree
+    (id)
+    TABLESPACE pg_default;		
+
 COMMENT ON TABLE public.atomicmarket_buyoffer IS 'Store buyoffers, every buyoffer which has no corresponding entry in atomicmarket_buyoffer_state is in created state';	
 
 --
@@ -391,7 +441,12 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_state_state
     ON public.atomicmarket_buyoffer_state USING btree
     (state)
-    TABLESPACE pg_default;	
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_state_id
+    ON public.atomicmarket_buyoffer_state USING btree
+    (id)
+    TABLESPACE pg_default;			
 
 -- add trigger to fill maker / taker market fees
 CREATE OR REPLACE TRIGGER atomicmarket_buyoffer_state_fill_mtfees_tr
@@ -432,6 +487,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_asset_asset_id
     ON public.atomicmarket_buyoffer_asset USING btree
     (asset_id)
     TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicmarket_buyoffer_asset_id
+    ON public.atomicmarket_buyoffer_asset USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 ----------------------------------
 -- default tables

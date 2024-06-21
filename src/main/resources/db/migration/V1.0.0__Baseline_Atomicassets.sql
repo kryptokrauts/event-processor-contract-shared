@@ -169,7 +169,17 @@ CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_global_sequence
 CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_id_type
     ON public.soonmarket_realtime_event USING btree
     (id,type)
-    TABLESPACE pg_default;	
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_id
+    ON public.soonmarket_realtime_event USING btree
+    (id)
+    TABLESPACE pg_default;			
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_blocknum
+    ON public.soonmarket_realtime_event USING btree
+    (blocknum)
+    TABLESPACE pg_default;			
 
 COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for retrieving historic entries';
 
@@ -178,6 +188,7 @@ COMMENT ON TABLE public.soonmarket_realtime_event IS 'Stores realtime events for
 CREATE TABLE public.soonmarket_realtime_event_bundle
 (		
 		id bigserial,
+		blocknum bigint,
 		global_sequence bigint,
 		asset_id bigint NULL,
 		template_id bigint NULL,
@@ -188,7 +199,13 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_bundle_id
     ON public.soonmarket_realtime_event_bundle USING btree
     (id)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_soonmarket_realtime_event_bundle_blocknum
+    ON public.soonmarket_realtime_event_bundle USING btree
+    (blocknum)
     TABLESPACE pg_default;	
+
 
 COMMENT ON TABLE public.soonmarket_realtime_event_bundle IS 'Stores realtime events for single assets';
 
@@ -252,6 +269,11 @@ CREATE INDEX IF NOT EXISTS idx_offer_memo
     (memo ASC NULLS LAST)
     TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_offer_id
+    ON public.atomicassets_offer USING btree
+    (id)
+    TABLESPACE pg_default;
+
 COMMENT ON TABLE public.atomicassets_offer IS 'Store atomicassets offers';			
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_offer_state_log
@@ -272,7 +294,12 @@ CREATE INDEX IF NOT EXISTS idx_atomicassets_offer_state_log_state
 CREATE INDEX IF NOT EXISTS idx_atomicassets_offer_state_log_offer_id
     ON public.atomicassets_offer_state_log USING btree
     (offer_id ASC NULLS LAST)
-    TABLESPACE pg_default;		
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_atomicassets_offer_state_log_id
+    ON public.atomicassets_offer_state_log USING btree
+    (id)
+    TABLESPACE pg_default;				
 
 COMMENT ON TABLE public.atomicassets_offer_state_log IS 'Store state changes on atomicassets offers as log';
 
@@ -305,6 +332,11 @@ CREATE INDEX IF NOT EXISTS idx_transfer_memo
     ON public.atomicassets_transfer USING btree
     (memo)
     TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_transfer_id
+    ON public.atomicassets_transfer USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 COMMENT ON TABLE public.atomicassets_transfer IS 'Store all "real" transfers (without market interaction)';
 
@@ -344,7 +376,12 @@ TABLESPACE pg_default;
 CREATE INDEX IF NOT EXISTS idx_collection_creator
     ON public.atomicassets_collection USING btree
     (creator ASC NULLS LAST)
-    TABLESPACE pg_default;			
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_collection_id
+    ON public.atomicassets_collection USING btree
+    (id)
+    TABLESPACE pg_default;
 
 COMMENT ON TABLE public.atomicassets_collection IS 'Store base collection. Collection entries are only persisted once';
 
@@ -391,7 +428,7 @@ CREATE INDEX IF NOT EXISTS idx_collection_data_log_current
 CREATE INDEX IF NOT EXISTS idx_collection_data_log_category
     ON public.atomicassets_collection_data_log USING btree
     (category asc NULLS LAST)
-    TABLESPACE pg_default;						
+    TABLESPACE pg_default;	
 
 COMMENT ON TABLE public.atomicassets_collection_data_log IS 'Store collection data. Every time the data is updated, a new entry is persisted';
 
@@ -491,6 +528,11 @@ CREATE INDEX IF NOT EXISTS idx_schema_schema_id
     (schema_id ASC NULLS LAST)
     TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_schema_id
+    ON public.atomicassets_schema USING btree
+    (id)
+    TABLESPACE pg_default;
+
 COMMENT ON TABLE public.atomicassets_schema IS 'Store general schema information';
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_schema_format_log
@@ -522,7 +564,12 @@ CREATE INDEX IF NOT EXISTS idx_schema_format_log_schema_id_collection_id
 CREATE INDEX IF NOT EXISTS idx_atomicassets_schema_format_log_current
     ON public.atomicassets_schema_format_log USING btree
     (current)
-    TABLESPACE pg_default;						
+    TABLESPACE pg_default;	
+
+CREATE INDEX IF NOT EXISTS idx_atomicassets_schema_format_log_id
+    ON public.atomicassets_schema_format_log USING btree
+    (id)
+    TABLESPACE pg_default;								
 
 CREATE OR REPLACE FUNCTION atomicassets_schema_format_log_schema_merge_f()
 RETURNS TRIGGER AS $$
@@ -597,6 +644,11 @@ CREATE INDEX IF NOT EXISTS idx_template_immutable_data
     (immutable_data)
     TABLESPACE pg_default;	
 
+CREATE INDEX IF NOT EXISTS idx_template_id
+    ON public.atomicassets_template USING btree
+    (id)
+    TABLESPACE pg_default;			
+
 COMMENT ON TABLE public.atomicassets_template IS 'Store general information about template (edition NFTs)';		
 
 CREATE TABLE IF NOT EXISTS public.atomicassets_template_state
@@ -617,6 +669,11 @@ COMMENT ON TABLE public.atomicassets_template_state IS 'Store template state inf
 CREATE INDEX IF NOT EXISTS idx_template_state_blocknum
     ON public.atomicassets_template_state USING btree
     (blocknum ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_template_state_id
+    ON public.atomicassets_template_state USING btree
+    (id)
     TABLESPACE pg_default;
 
 -- automatically set max_supply to number of minted edition NFTs
@@ -676,6 +733,11 @@ CREATE INDEX IF NOT EXISTS idx_asset_immutable_data
     (immutable_data)
     TABLESPACE pg_default;
 
+CREATE INDEX IF NOT EXISTS idx_asset_id
+    ON public.atomicassets_asset USING btree
+    (id)
+    TABLESPACE pg_default;				
+
 -- trigger for automatically filling the serial for this edition NFT
 -- if template_id is null it is a real 1/1 and we set serial to 1
 CREATE OR REPLACE FUNCTION atomicassets_asset_auto_increment_serial_f()
@@ -720,6 +782,11 @@ CREATE INDEX IF NOT EXISTS idx_atomicassets_asset_data_name
     ON public.atomicassets_asset_data USING btree
     (name ASC NULLS LAST)
     TABLESPACE pg_default;
+
+CREATE INDEX IF NOT EXISTS idx_atomicassets_asset_data_id
+    ON public.atomicassets_asset_data USING btree
+    (id)
+    TABLESPACE pg_default;		
 
 COMMENT ON COLUMN public.atomicassets_asset_data.transferable IS '1:1 NFTs without template are always transferable';
 COMMENT ON COLUMN public.atomicassets_asset_data.burnable IS '1:1 NFTs without template are always burnable';
@@ -822,32 +889,104 @@ BEGIN
         EXECUTE 'UPDATE ' || log_table_name || ' SET current = false WHERE (' || TG_ARGV[0] || ')::text = $1'
         USING p_id_value;
     END IF;
-
-    NEW.current:=true;
+	
+		NEW.current:=true;
 
     RETURN NEW;
+    
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER atomicassets_collection_account_log_update_current_flag_tr
+--
+
+CREATE OR REPLACE FUNCTION update_current_flag_after_remove_f()
+RETURNS TRIGGER AS $$
+DECLARE
+    log_table_name TEXT;
+    p_id_value TEXT;
+		p_id_2_value TEXT;
+BEGIN
+    -- Set the table and column names based on the NEW row
+    log_table_name := TG_TABLE_NAME;	
+
+  -- Extract the id value from the NEW row using the dynamically specified id column name
+    EXECUTE 'SELECT ($1).' || TG_ARGV[0] || ' FROM ' || log_table_name INTO p_id_value USING OLD;
+
+		IF TG_ARGV[1] IS NOT NULL THEN
+        EXECUTE 'SELECT ($1).' || TG_ARGV[1] || '::text FROM ' || log_table_name INTO p_id_2_value USING OLD;
+    END IF;
+
+   
+		IF TG_ARGV[1] IS NOT NULL THEN
+			EXECUTE 'UPDATE ' || log_table_name || ' SET current = true FROM (SELECT id FROM ' || log_table_name || ' WHERE (' || TG_ARGV[0] || ')::text = $1 AND (' || TG_ARGV[1] || ')::text = $2 ORDER BY id DESC LIMIT 1) as max_id WHERE ' || log_table_name || '.id = max_id.id'
+			USING p_id_value, p_id_2_value;
+		ELSE
+			EXECUTE 'UPDATE ' || log_table_name || ' SET current = true FROM (SELECT id FROM ' || log_table_name || ' WHERE (' || TG_ARGV[0] || ')::text = $1 ORDER BY id DESC LIMIT 1) as max_id WHERE ' || log_table_name || '.id = max_id.id'
+			USING p_id_value;
+		END IF; 
+
+		RETURN null;
+		    
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER atomicassets_collection_account_log_update_current_flag_tr
 BEFORE INSERT ON public.atomicassets_collection_account_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('collection_id');
 
-CREATE TRIGGER atomicassets_collection_royalty_log_update_current_flag_tr
+CREATE OR REPLACE TRIGGER atomicassets_collection_account_log_update_current_flag_r_tr
+AFTER DELETE ON public.atomicassets_collection_account_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('collection_id');
+
+--
+
+CREATE OR REPLACE TRIGGER atomicassets_collection_royalty_log_update_current_flag_tr
 BEFORE INSERT ON public.atomicassets_collection_royalty_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('collection_id');
 
-CREATE TRIGGER atomicassets_collection_data_log_update_current_flag_tr
+CREATE OR REPLACE TRIGGER atomicassets_collection_royalty_log_update_current_flag_r_tr
+AFTER DELETE ON public.atomicassets_collection_royalty_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('collection_id');
+
+--
+
+CREATE OR REPLACE TRIGGER atomicassets_collection_data_log_update_current_flag_tr
 BEFORE INSERT ON public.atomicassets_collection_data_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('collection_id');
 
-CREATE TRIGGER atomicassets_asset_owner_log_set_current_tr
+CREATE OR REPLACE TRIGGER atomicassets_collection_data_log_update_current_flag_r_tr
+AFTER DELETE ON public.atomicassets_collection_data_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('collection_id');
+
+--
+
+CREATE OR REPLACE TRIGGER atomicassets_asset_owner_log_set_current_tr
 BEFORE INSERT ON public.atomicassets_asset_owner_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('asset_id');
 
-CREATE TRIGGER atomicassets_format_log_set_current_tr
+CREATE OR REPLACE TRIGGER atomicassets_asset_owner_log_set_current_r_tr
+AFTER DELETE ON public.atomicassets_asset_owner_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('asset_id');
+
+--
+
+CREATE OR REPLACE TRIGGER atomicassets_asset_data_log_set_current_tr
+BEFORE INSERT ON public.atomicassets_asset_data_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('asset_id');
+
+CREATE OR REPLACE TRIGGER atomicassets_asset_data_log_set_current_r_tr
+AFTER DELETE ON public.atomicassets_asset_data_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('asset_id');
+
+--
+
+CREATE OR REPLACE TRIGGER atomicassets_format_log_set_current_tr
 BEFORE INSERT ON public.atomicassets_schema_format_log
 FOR EACH ROW EXECUTE FUNCTION update_current_flag_f('schema_id','collection_id');
+
+CREATE OR REPLACE TRIGGER atomicassets_format_log_set_current_r_tr
+AFTER DELETE ON public.atomicassets_schema_format_log
+FOR EACH ROW EXECUTE FUNCTION update_current_flag_after_remove_f('schema_id','collection_id');
 
 ---------------------------------------------------------
 -- Trigger update time measurement

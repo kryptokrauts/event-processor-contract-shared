@@ -2,7 +2,7 @@
 -- templates
 ----------------------------------
 
-CREATE VIEW soonmarket_template_v AS
+CREATE OR REPLACE VIEW soonmarket_template_v AS
 SELECT
 	t1.blocknum AS blocknum, 
 	GREATEST(t1.blocknum, t2.blocknum) AS blocknum_updated,
@@ -104,8 +104,8 @@ COMMENT ON VIEW soonmarket_transfer_bundle_assets_v IS 'Get bundle assets for a 
 
 CREATE OR REPLACE VIEW soonmarket_auction_base_v as
 SELECT 
-	t1.blocknum,
-	t1.block_timestamp,
+	COALESCE(t2.blocknum, t4.blocknum, t1.blocknum) AS blocknum,
+  COALESCE(t2.block_timestamp, t4.block_timestamp, t1.block_timestamp) AS block_timestamp,
 	t1.auction_id,
 	t5.asset_id,
 	t5.template_id,
@@ -208,7 +208,7 @@ where VALID AND not burned;
 -- last sold for views
 ----------------------------------
 
-CREATE VIEW soonmarket_lsf_latest_asset_auctions_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_asset_auctions_v as
 WITH ranked_prices AS (
     SELECT
         a.asset_id,
@@ -220,7 +220,8 @@ WITH ranked_prices AS (
 				r.token,
 				s.buyer,
 				r.bundle,
-        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn,
+				r.auction_id as action_id
     FROM
         atomicmarket_auction_asset a
     JOIN
@@ -240,7 +241,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_asset_auctions_v IS 'Last price an asset w
 
 --
 
-CREATE VIEW soonmarket_lsf_latest_template_auctions_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_template_auctions_v as
 WITH ranked_prices AS (
     SELECT
         a.template_id,
@@ -252,7 +253,8 @@ WITH ranked_prices AS (
 				r.token,
 				s.buyer,	
 				r.bundle,	
-        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn,
+				r.auction_id as action_id
     FROM
         atomicmarket_auction_asset a
     JOIN
@@ -272,7 +274,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_template_auctions_v IS 'Last price any ass
 
 --
 
-CREATE VIEW soonmarket_lsf_latest_asset_buyoffers_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_asset_buyoffers_v as
 WITH ranked_prices AS (
     SELECT
         a.asset_id,
@@ -284,7 +286,8 @@ WITH ranked_prices AS (
 				r.token,
 				r.buyer,	
 				r.bundle,					             
-        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn,
+				a.buyoffer_id as action_id
     FROM
         atomicmarket_buyoffer_asset a
     JOIN
@@ -304,7 +307,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_asset_buyoffers_v IS 'Last price an asset 
 
 --
 
-CREATE VIEW soonmarket_lsf_latest_template_buyoffers_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_template_buyoffers_v as
 WITH ranked_prices AS (
     SELECT
         a.template_id,
@@ -316,7 +319,8 @@ WITH ranked_prices AS (
 				r.token,	
 				r.buyer,		
 				r.bundle,       
-        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn,
+				a.buyoffer_id as action_id
     FROM
         atomicmarket_buyoffer_asset a
     JOIN
@@ -336,7 +340,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_template_buyoffers_v IS 'Last price any as
 
 --
 
-CREATE VIEW soonmarket_lsf_latest_asset_sales_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_asset_sales_v as
 WITH ranked_prices AS (
     SELECT
         a.asset_id,
@@ -348,7 +352,8 @@ WITH ranked_prices AS (
 				r.token,	
 				s.buyer,	
 				r.bundle,			
-        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.asset_id ORDER BY s.block_timestamp DESC) AS rn,
+				r.sale_id as action_id
     FROM
         atomicmarket_sale_asset a
     JOIN
@@ -368,7 +373,7 @@ COMMENT ON VIEW soonmarket_lsf_latest_asset_sales_v IS 'Last price an asset was 
 
 --
 
-CREATE VIEW soonmarket_lsf_latest_template_sales_v as
+CREATE OR REPLACE VIEW soonmarket_lsf_latest_template_sales_v as
 WITH ranked_prices AS (
     SELECT
         a.template_id,
@@ -380,7 +385,8 @@ WITH ranked_prices AS (
 				r.token,
 				s.buyer,	
 				r.bundle,			
-        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY a.template_id ORDER BY s.block_timestamp DESC) AS rn,
+				r.sale_id as action_id
     FROM
         atomicmarket_sale_asset a
     JOIN
@@ -413,7 +419,8 @@ WITH all_prices AS (
 		buyer,		
 	  sourcetype,
 		bundle,
-	  ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY block_timestamp DESC) AS rn
+	  ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY block_timestamp DESC) AS rn,
+		action_id
 	FROM
 	(
 		SELECT * FROM soonmarket_lsf_latest_asset_auctions_v
@@ -437,7 +444,7 @@ COMMENT ON VIEW soonmarket_last_sold_for_asset_v IS 'Last sold for price determi
 
 --
 
-CREATE VIEW soonmarket_last_sold_for_template_v as
+CREATE OR REPLACE VIEW soonmarket_last_sold_for_template_v as
 WITH all_prices AS (
 	SELECT 
 	  template_id,
@@ -450,7 +457,8 @@ WITH all_prices AS (
 		buyer,
 	  sourcetype,
 		bundle,
-	  ROW_NUMBER() OVER (PARTITION BY template_id ORDER BY block_timestamp DESC) AS rn
+	  ROW_NUMBER() OVER (PARTITION BY template_id ORDER BY block_timestamp DESC) AS rn,
+		action_id
 	FROM
 	(
 		SELECT * FROM soonmarket_lsf_latest_template_auctions_v
