@@ -4,6 +4,10 @@
 	"namespace": "contracts",
 	"fields": [
 		{
+			"name": "blocknum",
+			"type": "long"
+		},
+		{
 			"name": "global_sequence",
 			"type": "long"
 		},
