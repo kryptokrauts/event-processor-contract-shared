@@ -2,13 +2,17 @@ package com.kryptokrauts.shared.model.common;
 
 import com.kryptokrauts.shared.model._BaseModel;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
 @Getter
 @Setter
 @RegisterForReflection
+@AllArgsConstructor
+@NoArgsConstructor
 @SuperBuilder
 public class _Account extends _BaseModel {
 

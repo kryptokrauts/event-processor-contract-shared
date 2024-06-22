@@ -3,7 +3,9 @@ package com.kryptokrauts.shared.model.common;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.kryptokrauts.shared.model._BaseModel;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -12,6 +14,8 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @SuperBuilder
 @RegisterForReflection
+@AllArgsConstructor
+@NoArgsConstructor
 public class _Asset extends _BaseModel {
 
   private Long assetId;

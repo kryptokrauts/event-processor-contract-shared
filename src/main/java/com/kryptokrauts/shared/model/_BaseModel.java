@@ -10,9 +10,9 @@ import lombok.experimental.SuperBuilder;
 
 @Getter
 @SuperBuilder
+@RegisterForReflection
 @AllArgsConstructor
 @NoArgsConstructor
-@RegisterForReflection
 public class _BaseModel {
 
   public static final ObjectMapper objectMapper = new ObjectMapper();

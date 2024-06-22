@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.kryptokrauts.shared.model._BaseModel;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -12,6 +14,8 @@ import lombok.experimental.SuperBuilder;
 @Getter
 @Setter
 @RegisterForReflection
+@AllArgsConstructor
+@NoArgsConstructor
 @SuperBuilder
 public class _PriceInfo extends _BaseModel {
 

@@ -5,7 +5,9 @@ import com.kryptokrauts.shared.model.common._Asset;
 import com.kryptokrauts.shared.model.common._PriceInfo;
 import com.kryptokrauts.shared.model.realtime._Notification;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
@@ -13,6 +15,8 @@ import lombok.experimental.SuperBuilder;
 @Setter
 @SuperBuilder
 @RegisterForReflection
+@AllArgsConstructor
+@NoArgsConstructor
 public class _OfferNotification extends _Notification {
 
   private Long buyofferId;

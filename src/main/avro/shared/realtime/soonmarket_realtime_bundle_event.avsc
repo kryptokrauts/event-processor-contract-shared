@@ -5,7 +5,7 @@
 	"fields": [
 		{
 			"name": "blocknum",
-			"type": "long"
+			"type": ["null","long"]
 		},
 		{
 			"name": "global_sequence",
