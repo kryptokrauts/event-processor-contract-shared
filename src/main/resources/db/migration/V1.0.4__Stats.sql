@@ -96,6 +96,8 @@ LEFT JOIN soonmarket_asset_v v1 ON vol.asset_id=v1.asset_id
 ORDER BY 
     price_usd DESC NULLS LAST;
 
+CREATE UNIQUE INDEX pk_soonmarket_top_nft_sales_mv ON soonmarket_top_nft_sales_mv (asset_id,sale_id,sale_type);
+
 ----------------------------------
 -- Global Stats
 ----------------------------------

@@ -304,7 +304,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_soonmarket_exchange_rate_asset_token_symbo
 
 CREATE OR REPLACE VIEW public.soonmarket_exchange_rate_historic_v
  AS
- SELECT er.id,
+	SELECT distinct on(era.id,DATE(er.utc_date))
+ 		er.id,
     er.asset_id,
     era.symbol,
     era.name,
