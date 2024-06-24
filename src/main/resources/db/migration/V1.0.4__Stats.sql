@@ -4,22 +4,22 @@
 
 CREATE OR replace VIEW soonmarket_sale_stats_v as
 Select
-	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size
+	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size,'listing' as sale_type, t1.primary_asset_id as asset_id, t1.sale_id
 	FROM atomicmarket_sale_state t2
 	LEFT JOIN atomicmarket_sale t1  ON t1.sale_id=t2.sale_id
 	WHERE STATE=3 
 UNION ALL
 SELECT 
-	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t2.winning_bid,t1.bundle_size
+	t2.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t2.winning_bid,t1.bundle_size,'auction', t1.primary_asset_id, t1.auction_id
 	FROM atomicmarket_auction_state t2 
 	LEFT JOIN atomicmarket_auction t1  ON t1.auction_id=t2.auction_id
 	WHERE STATE=3 
 UNION ALL
 SELECT  
-	t1.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size
+	t1.buyer,t1.collection_id,seller,t2.block_timestamp,t1.token,t1.price,t1.bundle_size,'buyoffer', t1.primary_asset_id, t1.buyoffer_id
 	FROM atomicmarket_buyoffer_state t2
 	LEFT JOIN atomicmarket_buyoffer t1 ON t1.buyoffer_id=t2.buyoffer_id
-	WHERE STATE=3;	
+	WHERE STATE=3;		
 
 ----------------------------------
 -- Collection Holder
@@ -66,6 +66,35 @@ GROUP BY t1.collection_id, account,total,burned,num_bought,num_sold,num_sent,num
 COMMENT ON MATERIALIZED VIEW soonmarket_collection_holder_mv IS 'List of collection holders and stats';
 
 CREATE UNIQUE INDEX pk_soonmarket_collection_holder_mv ON soonmarket_collection_holder_mv (account,collection_id);
+
+----------------------------------
+-- Top NFT Sales
+----------------------------------
+
+CREATE MATERIALIZED VIEW soonmarket_top_nft_sales_mv AS
+SELECT 
+	vol.*,
+    round_to_decimals_f(her.usd * vol.price) AS price_usd,    
+	v1.asset_name,
+	v1.asset_media,
+	v1.asset_media_type,
+	v1.asset_media_preview,
+	v1.collection_name,
+	v1.collection_image,
+	v1.shielded,
+	v1.blacklisted,
+	v1.serial,
+	v1.edition_size
+FROM soonmarket_sale_stats_v vol
+LEFT JOIN soonmarket_exchange_rate_historic_v her 
+    ON her.utc_date::text = to_char(
+        (to_timestamp((vol.block_timestamp / 1000)::double precision) AT TIME ZONE 'UTC'::text), 
+        'YYYY-MM-DD 00:00:00'::text
+    ) 
+    AND her.token_symbol::text = vol.token
+LEFT JOIN soonmarket_asset_v v1 ON vol.asset_id=v1.asset_id
+ORDER BY 
+    price_usd DESC NULLS LAST;
 
 ----------------------------------
 -- Global Stats
