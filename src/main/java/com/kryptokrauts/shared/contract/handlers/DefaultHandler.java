@@ -54,7 +54,7 @@ public class DefaultHandler extends BaseHandler {
    *
    * @param event
    */
-  public void handleResetEvent(ResetEvent event, String context) {
+  public void handleResetEvent(ResetEvent event, String context) throws Exception {
     BaseHandler.logger.warnf(
         "Handling incoming reset event of type '%s' occurred at blocknum %d",
         event.getReset_type(), event.getReset_blocknum());
@@ -75,6 +75,23 @@ public class DefaultHandler extends BaseHandler {
     }
 
     this.emitTransformedMessage(reset, this.resetEmitter);
+
+    RawEvent rawEvent = new RawEvent();
+    rawEvent.setBlocknum(event.getReset_blocknum());
+    rawEvent.setGlobal_sequence(event.getReset_blocknum());
+    rawEvent.setTimestamp(event.getTimestamp());
+    rawEvent.setTransaction_id(String.valueOf(event.getReset_blocknum()));
+    rawEvent.setType(event.getReset_type());
+    rawEvent.setData(
+        Map.of(
+            "details",
+            event.getDetails(),
+            "cleanDatabase",
+            event.getClean_database(),
+            "restartAtBlock",
+            event.getRestart_at_block()));
+
+    this.handleEvent(rawEvent, context);
   }
 
   /**
