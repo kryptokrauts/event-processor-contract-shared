@@ -567,11 +567,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER t_atomicmarket_reset_log_clean_after_blocknum_tr
-AFTER INSERT ON t_atomicmarket_reset_log
-FOR EACH ROW
-EXECUTE FUNCTION t_atomicmarket_reset_log_clean_after_blocknum_f();
-
 COMMENT ON TABLE public.t_atomicmarket_reset_log IS 'Store reset events. Whenever an entry is added, the atomicmarket_ tables is cleared after the given blocknum, see similiary named trigger';
 
 ----------------------------------

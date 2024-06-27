@@ -88,11 +88,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE TRIGGER t_atomicassets_reset_log_clean_after_blocknum_tr
-AFTER INSERT ON t_atomicassets_reset_log
-FOR EACH ROW
-EXECUTE FUNCTION t_atomicassets_reset_log_clean_after_blocknum_f();
-
 COMMENT ON TABLE public.t_atomicassets_reset_log IS 'Store reset events. Whenever an entry is added, the atomicassets_ tables is cleared after the given blocknum, see similiary named trigger';
 
 CREATE TABLE IF NOT EXISTS public.soonmarket_realtime_event
