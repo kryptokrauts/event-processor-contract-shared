@@ -68,37 +68,6 @@ COMMENT ON MATERIALIZED VIEW soonmarket_collection_holder_mv IS 'List of collect
 CREATE UNIQUE INDEX pk_soonmarket_collection_holder_mv ON soonmarket_collection_holder_mv (account,collection_id);
 
 ----------------------------------
--- Top NFT Sales
-----------------------------------
-
-CREATE MATERIALIZED VIEW soonmarket_top_nft_sales_mv AS
-SELECT 
-	vol.*,
-    round_to_decimals_f(her.usd * vol.price) AS price_usd,    
-	v1.asset_name,
-	v1.asset_media,
-	v1.asset_media_type,
-	v1.asset_media_preview,
-	v1.collection_name,
-	v1.collection_image,
-	v1.shielded,
-	v1.blacklisted,
-	v1.serial,
-	v1.edition_size
-FROM soonmarket_sale_stats_v vol
-LEFT JOIN soonmarket_exchange_rate_historic_v her 
-    ON her.utc_date::text = to_char(
-        (to_timestamp((vol.block_timestamp / 1000)::double precision) AT TIME ZONE 'UTC'::text), 
-        'YYYY-MM-DD 00:00:00'::text
-    ) 
-    AND her.token_symbol::text = vol.token
-LEFT JOIN soonmarket_asset_v v1 ON vol.asset_id=v1.asset_id
-ORDER BY 
-    price_usd DESC NULLS LAST;
-
-CREATE UNIQUE INDEX pk_soonmarket_top_nft_sales_mv ON soonmarket_top_nft_sales_mv (asset_id,sale_id,sale_type);
-
-----------------------------------
 -- Global Stats
 ----------------------------------
 CREATE OR REPLACE VIEW soonmarket_global_stats_24h_v as

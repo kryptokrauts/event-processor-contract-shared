@@ -531,7 +531,7 @@ INSERT INTO public.soonmarket_exchange_rate_asset (id, date_created, date_change
 INSERT INTO public.soonmarket_exchange_rate_asset (id, date_created, date_changed, symbol, name, external_id, sync_url_historic, token_symbol, source, token_precision, ignore) VALUES (5, '2022-06-27 21:45:49.512', '2022-06-27 21:45:49.512', 'ETH', 'Ethereum', 'ethereum', 'https://api.cryptowat.ch/markets/binance/ethusdt/ohlc?periods=86400&after=1609455600', 'XETH', 'coingecko', 8, false);
 INSERT INTO public.soonmarket_exchange_rate_asset (id, date_created, date_changed, symbol, name, external_id, sync_url_historic, token_symbol, source, token_precision, ignore) VALUES (10, '2023-01-12 11:15:00.233', '2023-01-12 11:45:00.365926', 'METAL', 'Metal Blockchain', 'metal-blockchain', 'https://api.coingecko.com/api/v3/coins/metal-blockchain/history?date=dd-mm-yyyy&localization=false', 'METAL', 'coingecko', 8, false);
 
-INSERT INTO public.sm_exchange_rates VALUES
+INSERT INTO public.soonmarket_exchange_rate VALUES
 	(1087, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609459200000, '2021-01-01 00:00:00', 28923.63, 23713.33, 'coingecko', NULL),
 	(1088, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609545600000, '2021-01-02 00:00:00', 29331.69, 24076.03, 'coingecko', NULL),
 	(1089, '2022-06-27 21:27:50.494', '2022-06-27 21:27:50.494', 4, 1609632000000, '2021-01-03 00:00:00', 32178.33, 25925.69, 'coingecko', NULL),
