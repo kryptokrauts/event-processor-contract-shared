@@ -200,8 +200,9 @@ SELECT
 	t1.block_timestamp AS listing_date,
 	t1.sale_id as listing_id,
 	t2.state,
+	-- valid means: open and owner = seller 
 	CASE WHEN t2.state IS NULL then
-	COALESCE(	t5.owner = t1.seller,FALSE) ELSE TRUE END AS VALID,
+	COALESCE(	t5.owner = t1.seller,FALSE) ELSE FALSE END AS VALID,
 	t3.asset_id,
 	t4.serial,
 	t3.index,
