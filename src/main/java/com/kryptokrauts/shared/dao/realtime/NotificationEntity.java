@@ -5,8 +5,10 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
+@Setter
 @Entity
 @Table(name = "soonmarket_notification")
 public class NotificationEntity extends PanacheEntityBase {
@@ -20,6 +22,8 @@ public class NotificationEntity extends PanacheEntityBase {
   private Long id;
 
   private Long blockTimestamp;
+
+  private Long blocknum;
 
   private Long actionId;
 
@@ -35,5 +39,14 @@ public class NotificationEntity extends PanacheEntityBase {
             actionType,
             account)
         .firstResult();
+  }
+
+  public static NotificationEntity findOrGetNew(
+      Long globalSequence, String actionType, String account) {
+    NotificationEntity entity = NotificationEntity.findById(globalSequence, actionType, account);
+    if (entity == null) {
+      entity = new NotificationEntity();
+    }
+    return entity;
   }
 }

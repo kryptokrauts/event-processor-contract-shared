@@ -1,6 +1,6 @@
 {
 	"type": "record",
-	"name": "soonmarket_realtime_event",
+	"name": "realtime_sse",
 	"namespace": "contracts",
 	"fields": [
 		{
