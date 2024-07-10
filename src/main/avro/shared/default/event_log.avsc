@@ -1,0 +1,31 @@
+{
+	"type": "record",
+	"name": "event_log",
+	"namespace": "contracts",
+	"fields": [
+		{
+			"name": "blocknum",
+			"type": "long"
+		},
+		{
+			"name": "block_timestamp",
+			"type": "long"
+		},		
+		{
+			"name": "global_sequence",
+			"type": "long"
+		},
+		{
+			"name": "transaction_id",
+			"type": ["null","string"]
+		},		
+		{
+			"name": "type",
+			"type": ["null","string"]
+		},
+		{
+			"name": "data",
+			"type": ["null","string"]
+		}
+	]
+}
