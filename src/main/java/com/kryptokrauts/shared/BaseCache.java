@@ -3,7 +3,7 @@ package com.kryptokrauts.shared;
 import com.kryptokrauts.shared.dao.common.CollectionAuditEntity;
 import com.kryptokrauts.shared.dao.common.ExchangeRateEntity;
 import com.kryptokrauts.shared.dao.common.MarketConfigEntity;
-import com.kryptokrauts.shared.dao.common.ProfileBaseEntity;
+import com.kryptokrauts.shared.dao.common.ProfileBaseView;
 import com.kryptokrauts.shared.dao.common.SupportedAssetsEntity;
 import com.kryptokrauts.shared.model.common._Account;
 import com.kryptokrauts.shared.model.common._BlacklistMetadata;
@@ -115,10 +115,10 @@ public class BaseCache {
   private void refreshProfileCache() {
     long start = System.currentTimeMillis();
 
-    List<ProfileBaseEntity> profileList = ProfileBaseEntity.listAll();
+    List<ProfileBaseView> profileList = ProfileBaseView.listAll();
     Map<String, _Account> tempCache =
         profileList.stream()
-            .collect(Collectors.toMap(ProfileBaseEntity::getAccount, ProfileBaseEntity::toModel));
+            .collect(Collectors.toMap(ProfileBaseView::getAccount, ProfileBaseView::toModel));
     profileCache = tempCache;
 
     logger.infof("Refresh of profile cache took %s ms", (System.currentTimeMillis() - start));
