@@ -8,12 +8,24 @@
 			"type": "long"
 		},
 		{
+			"name": "block_timestamp",
+			"type": "long"
+		},
+		{
 			"name": "global_sequence",
 			"type": "long"
 		},
 		{
-			"name": "block_timestamp",
-			"type": "long"
+			"name": "asset_id",
+			"type": ["null","long"]
+		},
+		{
+			"name": "template_id",
+			"type": ["null","long"]
+		},
+		{
+			"name": "collection_id",
+			"type": "string"
 		},
 		{
 			"name": "context",
@@ -25,7 +37,7 @@
 		},
 		{
 			"name": "data",
-			"type": "string"
+			"type": ["null","string"]
 		}	
 	]
 }

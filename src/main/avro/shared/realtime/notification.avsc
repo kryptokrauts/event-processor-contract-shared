@@ -1,6 +1,6 @@
 {
 	"type": "record",
-	"name": "notification_sse",
+	"name": "notification",
 	"namespace": "contracts",
 	"fields": [
 		{
