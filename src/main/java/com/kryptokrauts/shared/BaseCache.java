@@ -55,6 +55,11 @@ public class BaseCache {
   }
 
   public static Integer getTokenPrecision(String token) {
+    if (!supportedAssetsCache.containsKey(token)) {
+      SupportedAssetsEntity supportedAssets =
+          SupportedAssetsEntity.find("token = ?1", token).firstResult();
+      supportedAssetsCache.put(token, supportedAssets.getPrecision());
+    }
     return supportedAssetsCache.get(token);
   }
 
