@@ -8,7 +8,6 @@ import com.kryptokrauts.shared.dao.common.SupportedAssetsEntity;
 import com.kryptokrauts.shared.model.common._Account;
 import com.kryptokrauts.shared.model.common._BlacklistMetadata;
 import com.kryptokrauts.shared.model.common._MarketConfig;
-import io.quarkus.panache.common.Sort;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.inject.Singleton;
 import java.util.HashMap;
@@ -110,9 +109,7 @@ public class BaseCache {
   private void refreshMarketConfigCache() {
     long start = System.currentTimeMillis();
 
-    marketConfigCache =
-        ((MarketConfigEntity) MarketConfigEntity.findAll(Sort.descending("id")).firstResult())
-            .toModel();
+    marketConfigCache = MarketConfigEntity.findLatest().toModel();
 
     logger.infof("Refresh of market config cache took %s ms", (System.currentTimeMillis() - start));
   }
