@@ -34,4 +34,9 @@ public class AuctionBaseEntity extends PanacheEntityBase {
   public static AuctionBaseEntity findByAuctionId(Long auctionId) {
     return AuctionBaseEntity.find("auctionId = ?1 AND index=1", auctionId).firstResult();
   }
+
+  public static Long findNFTByAuctionId(Long auctionId) {
+    AuctionBaseEntity auction = AuctionBaseEntity.findByAuctionId(auctionId);
+    return auction != null ? auction.getAssetId() : null;
+  }
 }

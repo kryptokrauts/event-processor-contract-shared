@@ -30,4 +30,9 @@ public class ListingBaseEntity extends PanacheEntityBase {
   public static ListingBaseEntity findByListingId(Long listingId) {
     return ListingBaseEntity.find("saleId = ?1", listingId).firstResult();
   }
+
+  public static Long findNFTBySaleId(Long saleId) {
+    ListingBaseEntity listing = ListingBaseEntity.findByListingId(saleId);
+    return listing != null ? listing.getPrimaryAssetId() : null;
+  }
 }

@@ -39,4 +39,9 @@ public class BuyofferBaseEntity extends PanacheEntityBase {
   public static BuyofferBaseEntity findByBuyofferId(Long buyofferId) {
     return BuyofferBaseEntity.find("buyofferId = ?1 AND index=1", buyofferId).firstResult();
   }
+
+  public static Long findNFTByBuyofferId(Long buyofferId) {
+    BuyofferBaseEntity buyoffer = BuyofferBaseEntity.findByBuyofferId(buyofferId);
+    return buyoffer != null ? buyoffer.getAssetId() : null;
+  }
 }
