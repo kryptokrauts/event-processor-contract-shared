@@ -8,9 +8,9 @@ import com.kryptokrauts.shared.dao.common.SupportedAssetsEntity;
 import com.kryptokrauts.shared.model.common._Account;
 import com.kryptokrauts.shared.model.common._BlacklistMetadata;
 import com.kryptokrauts.shared.model.common._MarketConfig;
-import io.quarkus.panache.common.Sort;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.inject.Singleton;
+import jakarta.transaction.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +93,8 @@ public class BaseCache {
     this.refreshSupportedAssetsCache();
   }
 
-  private void refreshExchangeRateCache() {
+  @Transactional
+  protected void refreshExchangeRateCache() {
     long start = System.currentTimeMillis();
 
     List<ExchangeRateEntity> exchangeRateList = ExchangeRateEntity.listAll();
@@ -107,17 +108,17 @@ public class BaseCache {
         "Refresh of exchange rates cache took %s ms", (System.currentTimeMillis() - start));
   }
 
-  private void refreshMarketConfigCache() {
+  @Transactional
+  protected void refreshMarketConfigCache() {
     long start = System.currentTimeMillis();
 
-    marketConfigCache =
-        ((MarketConfigEntity) MarketConfigEntity.findAll(Sort.descending("id")).firstResult())
-            .toModel();
+    marketConfigCache = MarketConfigEntity.findLatest().toModel();
 
     logger.infof("Refresh of market config cache took %s ms", (System.currentTimeMillis() - start));
   }
 
-  private void refreshProfileCache() {
+  @Transactional
+  protected void refreshProfileCache() {
     long start = System.currentTimeMillis();
 
     List<ProfileBaseView> profileList = ProfileBaseView.listAll();
@@ -129,7 +130,8 @@ public class BaseCache {
     logger.infof("Refresh of profile cache took %s ms", (System.currentTimeMillis() - start));
   }
 
-  private void refreshShieldedCollectionsCache() {
+  @Transactional
+  protected void refreshShieldedCollectionsCache() {
     long start = System.currentTimeMillis();
 
     List<CollectionAuditEntity> collectionList = CollectionAuditEntity.getShieldedCollections();
@@ -141,7 +143,8 @@ public class BaseCache {
         "Refresh of shielded collections took %s ms", (System.currentTimeMillis() - start));
   }
 
-  private void refreshBlacklistedCollectionsCache() {
+  @Transactional
+  protected void refreshBlacklistedCollectionsCache() {
     long start = System.currentTimeMillis();
 
     List<CollectionAuditEntity> collectionList = CollectionAuditEntity.getBlacklistedCollections();
@@ -161,7 +164,8 @@ public class BaseCache {
         "Refresh of blacklisted collections took %s ms", (System.currentTimeMillis() - start));
   }
 
-  private void refreshSupportedAssetsCache() {
+  @Transactional
+  protected void refreshSupportedAssetsCache() {
     long start = System.currentTimeMillis();
 
     List<SupportedAssetsEntity> supportedAssets = SupportedAssetsEntity.listAll();
