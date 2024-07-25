@@ -1,6 +1,9 @@
 package com.kryptokrauts.shared.dao.common;
 
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.panache.common.Sort;
+import io.quarkus.panache.common.Sort.Direction;
+import io.quarkus.panache.common.Sort.NullPrecedence;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -16,6 +19,8 @@ public class CollectionAuditEntity extends PanacheEntityBase {
 
   private Boolean shielded;
 
+  private Long shieldingDate;
+
   private Boolean blacklisted;
 
   private Long blacklistDate;
@@ -25,10 +30,15 @@ public class CollectionAuditEntity extends PanacheEntityBase {
   private String blacklistActor;
 
   public static List<CollectionAuditEntity> getShieldedCollections() {
-    return CollectionAuditEntity.find("shielded").list();
+    return CollectionAuditEntity.find(
+            "shielded", Sort.by("shieldingDate", Direction.Descending, NullPrecedence.NULLS_LAST))
+        .list();
   }
 
   public static List<CollectionAuditEntity> getBlacklistedCollections() {
-    return CollectionAuditEntity.find("blacklisted").list();
+    return CollectionAuditEntity.find(
+            "blacklisted",
+            Sort.by("blacklistDate", Direction.Descending, NullPrecedence.NULLS_LAST))
+        .list();
   }
 }
