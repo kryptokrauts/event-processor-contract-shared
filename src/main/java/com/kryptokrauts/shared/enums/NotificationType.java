@@ -10,5 +10,6 @@ public enum NotificationType {
   royalty_received,
   royalty_received_auction,
   royalty_received_buyoffer,
-  royalty_received_listing
+  royalty_received_listing,
+  listing_sold
 }

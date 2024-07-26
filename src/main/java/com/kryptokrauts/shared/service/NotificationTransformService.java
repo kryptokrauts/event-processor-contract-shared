@@ -1,5 +1,7 @@
 package com.kryptokrauts.shared.service;
 
+import org.apache.commons.lang3.StringUtils;
+
 import com.kryptokrauts.shared.BaseMapper;
 import com.kryptokrauts.shared.dao.common.AssetBaseEntity;
 import com.kryptokrauts.shared.dao.common.CollectionBaseView;
@@ -15,12 +17,13 @@ import com.kryptokrauts.shared.model.common._Collection;
 import com.kryptokrauts.shared.model.common._PriceInfo;
 import com.kryptokrauts.shared.model.realtime._Notification;
 import com.kryptokrauts.shared.model.realtime.notification._AuctionOutbidNotification;
+import com.kryptokrauts.shared.model.realtime.notification._ListingSoldNotification;
 import com.kryptokrauts.shared.model.realtime.notification._OfferNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyDecreasedNotification;
 import com.kryptokrauts.shared.model.realtime.notification._RoyaltyReceivedNotification;
 import com.kryptokrauts.shared.model.realtime.notification._TransferNotification;
+
 import jakarta.enterprise.context.ApplicationScoped;
-import org.apache.commons.lang3.StringUtils;
 
 @ApplicationScoped
 public class NotificationTransformService {
@@ -37,6 +40,7 @@ public class NotificationTransformService {
         case "royalty_received_listing" -> toRoyaltyReceivedNotification(entity, "listing");
         case "royalty_received_buyoffer" -> toRoyaltyReceivedNotification(entity, "buyoffer");
         case "royalty_received_auction" -> toRoyaltyReceivedNotification(entity, "auction");
+        case "listing_sold" -> toListingSoldNotification(entity);
         default -> null;
       };
     }
@@ -135,6 +139,23 @@ public class NotificationTransformService {
         .royaltyAmount(priceInfo)
         .type(NotificationType.royalty_received)
         .marketType(type)
+        .build();
+  }
+
+  private _ListingSoldNotification toListingSoldNotification(NotificationEntity entity) {
+    ListingBaseEntity listing = ListingBaseEntity.findByListingId(entity.getActionId());
+    return _ListingSoldNotification.builder()
+        .acknowlegded(entity.getAcknowledged())
+        .acknowlegdedDate(BaseMapper.mapDate(entity.getAcknowledgedDate()))
+        .asset(AssetBaseEntity.toModel(listing.getPrimaryAssetId()))
+        .bundleSize(listing.getBundleSize())
+        .collection(CollectionBaseView.toModel(listing.getCollectionId()))
+        .notificationId(entity.getId())
+        .priceInfo(
+            BaseMapper.buildPriceInfo(
+                listing.getToken(), listing.getPrice(), listing.getCollectionFee()))
+        .receivedDate(BaseMapper.mapDate(entity.getBlockTimestamp()))
+        .type(NotificationType.listing_sold)
         .build();
   }
 
