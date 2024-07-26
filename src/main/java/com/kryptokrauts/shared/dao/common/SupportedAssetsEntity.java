@@ -16,4 +16,6 @@ public class SupportedAssetsEntity extends PanacheEntityBase {
   @Id private String token;
 
   private Integer precision;
+
+  private Integer order;
 }
