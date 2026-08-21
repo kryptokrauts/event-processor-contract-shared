@@ -1,0 +1,66 @@
+# Line endings are LF in the repository and in the working tree, on every platform.
+# Git applies this on `git add`, so a contributor's core.autocrlf setting cannot put CRLF
+# into the index. Adding this file does not fix what is already committed - that needs
+# `git add --renormalize .` once, which is what the commit introducing this file did.
+#
+# The extensions are listed explicitly rather than relying on `text=auto` alone: auto
+# detection is a heuristic, and this repository had files keep their CRLF for years despite
+# a `* text=auto eol=lf` rule. The CI check is the actual guarantee.
+
+* text=auto eol=lf
+
+# source and config
+*.java   text eol=lf
+*.kt     text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.json   text eol=lf
+*.jsonc  text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.xml    text eol=lf
+*.sql    text eol=lf
+*.avsc   text eol=lf
+*.md     text eol=lf
+*.txt    text eol=lf
+*.css    text eol=lf
+*.scss   text eol=lf
+*.html   text eol=lf
+*.properties text eol=lf
+*.sh     text eol=lf
+*.env    text eol=lf
+Dockerfile text eol=lf
+Makefile text eol=lf
+
+# read by cmd.exe, which wants CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# never converted, never diffed
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.webp binary
+*.svg  text eol=lf
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
+*.pdf   binary
+*.zip   binary
+*.gz    binary
+*.tar   binary
+*.jar   binary
+*.wasm  binary
+*.glb   binary
+*.gltf  binary
+*.mp4   binary
+*.webm  binary
+*.avro  binary

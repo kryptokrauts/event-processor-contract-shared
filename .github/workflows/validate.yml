@@ -1,0 +1,19 @@
+name: validate
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  line-endings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check line endings
+        run: |
+          # .gitattributes normalises on add; this catches anything that slipped past it,
+          # including files committed before the rule existed. Fix with:
+          #   git add --renormalize . && git commit
+          if git ls-files --eol | grep -E '^i/(crlf|mixed)'; then
+            echo '::error::the files listed above have CRLF or mixed line endings in the index'
+            exit 1
+          fi

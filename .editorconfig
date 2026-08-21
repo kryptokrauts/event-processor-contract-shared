@@ -1,0 +1,10 @@
+# Keeps editors from reintroducing CRLF. The enforcement is .gitattributes plus the CI
+# check; this is so a contributor's working tree does not fight it in the first place.
+root = true
+
+[*]
+end_of_line = lf
+charset = utf-8
+
+[*.{bat,cmd}]
+end_of_line = crlf
