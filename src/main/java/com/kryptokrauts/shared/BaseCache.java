@@ -92,7 +92,7 @@ public class BaseCache {
    * below need a Hibernate session.
    */
   @ActivateRequestContext
-  void populateCachesAtStartup(@Observes StartupEvent event) {
+  public void populateCachesAtStartup(@Observes StartupEvent event) {
     long start = System.currentTimeMillis();
     logger.info("Populating caches at startup");
 
@@ -109,7 +109,7 @@ public class BaseCache {
     logger.infof("Populating caches at startup took %s ms", System.currentTimeMillis() - start);
   }
 
-  private void fillSafely(String name, Runnable refresh) {
+  protected void fillSafely(String name, Runnable refresh) {
     try {
       refresh.run();
     } catch (Exception e) {
