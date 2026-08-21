@@ -8,12 +8,18 @@ import com.kryptokrauts.shared.dao.common.SupportedAssetsEntity;
 import com.kryptokrauts.shared.model.common._Account;
 import com.kryptokrauts.shared.model.common._BlacklistMetadata;
 import com.kryptokrauts.shared.model.common._MarketConfig;
+import io.quarkus.runtime.StartupEvent;
 import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.context.control.ActivateRequestContext;
+import jakarta.enterprise.event.Observes;
 import jakarta.inject.Singleton;
 import jakarta.transaction.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BinaryOperator;
+import java.util.function.Function;
+import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import org.jboss.logging.Logger;
 
@@ -63,6 +69,55 @@ public class BaseCache {
     return supportedAssetsCache.get(token);
   }
 
+  /*-
+   * fill every cache once at startup.
+   *
+   * @Scheduled(every = ...) does not fire at boot, it fires one interval later, so without this
+   * every cache is empty for that first interval after each deploy. What that costs depends on the
+   * cache, and the two groups below are treated differently for that reason.
+   *
+   * The market config and the exchange rates are dereferenced without a null check in
+   * BaseMapper.buildPriceInfo, and both start as null rather than empty. So until they are filled,
+   * every response carrying a price fails with a NullPointerException - for ten minutes in the case
+   * of the exchange rates and, with cache.refresh.market_config = P1d, for up to a day in the case
+   * of the market config. Those two are required: failing to start is better than starting a
+   * service that reports itself healthy and answers every priced request with a 500.
+   *
+   * The rest degrade instead of failing - a missing profile costs a KYC badge, see
+   * kryptokrauts/event-processor-contract#11, a missing shielded list costs an icon - and the
+   * scheduled refresh retries within the hour. Those are filled best effort, so a database that is
+   * briefly unreachable at boot does not take the service down over a badge.
+   *
+   * The request context is activated for the same reason the scheduled methods have one - the reads
+   * below need a Hibernate session.
+   */
+  @ActivateRequestContext
+  void populateCachesAtStartup(@Observes StartupEvent event) {
+    long start = System.currentTimeMillis();
+    logger.info("Populating caches at startup");
+
+    // required, see above: their absence is a NullPointerException and not a degraded value
+    this.refreshMarketConfigCache();
+    this.refreshExchangeRateCache();
+
+    // best effort: a miss degrades and the scheduled refresh will retry
+    this.fillSafely("profiles", this::refreshProfileCache);
+    this.fillSafely("shielded collections", this::refreshShieldedCollectionsCache);
+    this.fillSafely("blacklisted collections", this::refreshBlacklistedCollectionsCache);
+    this.fillSafely("supported assets", this::refreshSupportedAssetsCache);
+
+    logger.infof("Populating caches at startup took %s ms", System.currentTimeMillis() - start);
+  }
+
+  private void fillSafely(String name, Runnable refresh) {
+    try {
+      refresh.run();
+    } catch (Exception e) {
+      logger.errorf(
+          e, "Could not populate the %s cache at startup, the scheduled refresh will retry", name);
+    }
+  }
+
   @Scheduled(every = "{cache.refresh.exchange_rates}")
   public void refreshExchangeRate() {
     this.refreshExchangeRateCache();
@@ -101,7 +156,10 @@ public class BaseCache {
     Map<String, Double> tempCache =
         exchangeRateList.stream()
             .collect(
-                Collectors.toMap(ExchangeRateEntity::getTokenSymbol, ExchangeRateEntity::getUsd));
+                keepFirst(
+                    "exchange rates",
+                    ExchangeRateEntity::getTokenSymbol,
+                    ExchangeRateEntity::getUsd));
     exchangeRateCache = tempCache;
 
     logger.infof(
@@ -124,7 +182,24 @@ public class BaseCache {
     List<ProfileBaseView> profileList = ProfileBaseView.listAll();
     Map<String, _Account> tempCache =
         profileList.stream()
-            .collect(Collectors.toMap(ProfileBaseView::getAccount, ProfileBaseView::toModel));
+            .collect(
+                Collectors.toMap(
+                    ProfileBaseView::getAccount,
+                    ProfileBaseView::toModel,
+                    // an account with several rows means the source view returns more than one,
+                    // which is a data problem to fix at the source - see #11. Until then the
+                    // conflict is resolved towards not verified: one of those rows can be a
+                    // revocation, and a kyc badge is a claim about a real person, so showing one
+                    // that is not true is worse than showing none. Either way the whole cache must
+                    // not be lost over a single row
+                    (first, second) -> {
+                      _Account kept = Boolean.TRUE.equals(first.getHasKYC()) ? second : first;
+                      logger.warnf(
+                          "Profile cache: account %s has several rows in"
+                              + " soonmarket_profile_base_v, resolving to hasKYC = %s",
+                          kept.getName(), kept.getHasKYC());
+                      return kept;
+                    }));
     profileCache = tempCache;
 
     logger.infof("Refresh of profile cache took %s ms", (System.currentTimeMillis() - start));
@@ -172,10 +247,32 @@ public class BaseCache {
     Map<String, Integer> tempCache =
         supportedAssets.stream()
             .collect(
-                Collectors.toMap(
-                    SupportedAssetsEntity::getToken, SupportedAssetsEntity::getPrecision));
+                keepFirst(
+                    "supported assets",
+                    SupportedAssetsEntity::getToken,
+                    SupportedAssetsEntity::getPrecision));
     supportedAssetsCache = tempCache;
 
     logger.infof("Refresh of supported assets took %s ms", (System.currentTimeMillis() - start));
+  }
+
+  /*-
+   * toMap that survives a duplicate key instead of throwing.
+   *
+   * The two argument Collectors.toMap throws IllegalStateException on a duplicate, which fails the
+   * whole refresh - and since the cache is only assigned on success, the previous contents stay,
+   * or nothing at all if it never succeeded once. A single duplicated row then costs the entire
+   * cache rather than one entry. Keeping the first value and warning about it is the better trade:
+   * one entry may be wrong, the rest keeps working, and the data problem stays visible in the log.
+   */
+  private static <T, K, V> Collector<T, ?, Map<K, V>> keepFirst(
+      String cacheName, Function<T, K> key, Function<T, V> value) {
+    BinaryOperator<V> keepFirstAndWarn =
+        (first, second) -> {
+          logger.warnf(
+              "%s cache: duplicate entry, keeping %s and ignoring %s", cacheName, first, second);
+          return first;
+        };
+    return Collectors.toMap(key, value, keepFirstAndWarn);
   }
 }
