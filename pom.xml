@@ -19,11 +19,10 @@
 		<skipITs>true</skipITs>
 		<surefire-plugin.version>3.2.3</surefire-plugin.version>
 		<lombok.version>1.18.30</lombok.version>
-		<beanutils.version>1.9.4</beanutils.version>
+		<beanutils.version>1.11.0</beanutils.version>
 		<build-helper-maven-plugin.version>3.5.0</build-helper-maven-plugin.version>
 		<fmt-maven-plugin.version>2.22</fmt-maven-plugin.version>
 		<postgresql-testcontainer.version>1.19.3</postgresql-testcontainer.version>
-		<beanutils.version>1.9.4</beanutils.version>
 		<avro-maven-plugin.version>1.11.3</avro-maven-plugin.version>
 		<maven-resources-plugin.version>3.3.1</maven-resources-plugin.version>
 		<resilience4j.version>1.5.0</resilience4j.version>
