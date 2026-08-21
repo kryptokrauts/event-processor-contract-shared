@@ -73,14 +73,20 @@ public class BaseCache {
    * fill every cache once at startup.
    *
    * @Scheduled(every = ...) does not fire at boot, it fires one interval later, so without this
-   * every cache is empty for that first interval after each deploy - and a lookup miss is not
-   * visible as an error, it silently degrades. The profile cache made that concrete: a miss in
-   * ApiBaseMapper.mapAccount returns an account with hasKYC = null, so no profile showed the KYC
-   * badge, see kryptokrauts/event-processor-contract#11.
+   * every cache is empty for that first interval after each deploy. What that costs depends on the
+   * cache, and the two groups below are treated differently for that reason.
    *
-   * Each cache is filled on its own and a failure is logged rather than thrown: the caches are
-   * derived data and the scheduled refresh will retry, so a database that is briefly unreachable
-   * at boot must not stop the service from starting.
+   * The market config and the exchange rates are dereferenced without a null check in
+   * BaseMapper.buildPriceInfo, and both start as null rather than empty. So until they are filled,
+   * every response carrying a price fails with a NullPointerException - for ten minutes in the case
+   * of the exchange rates and, with cache.refresh.market_config = P1d, for up to a day in the case
+   * of the market config. Those two are required: failing to start is better than starting a
+   * service that reports itself healthy and answers every priced request with a 500.
+   *
+   * The rest degrade instead of failing - a missing profile costs a KYC badge, see
+   * kryptokrauts/event-processor-contract#11, a missing shielded list costs an icon - and the
+   * scheduled refresh retries within the hour. Those are filled best effort, so a database that is
+   * briefly unreachable at boot does not take the service down over a badge.
    *
    * The request context is activated for the same reason the scheduled methods have one - the reads
    * below need a Hibernate session.
@@ -90,8 +96,11 @@ public class BaseCache {
     long start = System.currentTimeMillis();
     logger.info("Populating caches at startup");
 
-    this.fillSafely("exchange rates", this::refreshExchangeRateCache);
-    this.fillSafely("market config", this::refreshMarketConfigCache);
+    // required, see above: their absence is a NullPointerException and not a degraded value
+    this.refreshMarketConfigCache();
+    this.refreshExchangeRateCache();
+
+    // best effort: a miss degrades and the scheduled refresh will retry
     this.fillSafely("profiles", this::refreshProfileCache);
     this.fillSafely("shielded collections", this::refreshShieldedCollectionsCache);
     this.fillSafely("blacklisted collections", this::refreshBlacklistedCollectionsCache);
@@ -178,14 +187,16 @@ public class BaseCache {
                     ProfileBaseView::getAccount,
                     ProfileBaseView::toModel,
                     // an account with several rows means the source view returns more than one,
-                    // which is a data problem to fix at the source - see #11. Until then, an
-                    // account that is kyc verified anywhere counts as verified, and the whole
-                    // cache must not be lost over it
+                    // which is a data problem to fix at the source - see #11. Until then the
+                    // conflict is resolved towards not verified: one of those rows can be a
+                    // revocation, and a kyc badge is a claim about a real person, so showing one
+                    // that is not true is worse than showing none. Either way the whole cache must
+                    // not be lost over a single row
                     (first, second) -> {
-                      _Account kept = Boolean.TRUE.equals(first.getHasKYC()) ? first : second;
+                      _Account kept = Boolean.TRUE.equals(first.getHasKYC()) ? second : first;
                       logger.warnf(
                           "Profile cache: account %s has several rows in"
-                              + " soonmarket_profile_base_v, keeping hasKYC = %s",
+                              + " soonmarket_profile_base_v, resolving to hasKYC = %s",
                           kept.getName(), kept.getHasKYC());
                       return kept;
                     }));
