@@ -61,6 +61,20 @@
 		</dependencies>
 	</dependencyManagement>
 	<build>
+		<pluginManagement>
+			<plugins>
+				<!-- consumers declare this plugin without a version, so it has to be managed here.
+				     Without it maven resolves the newest release: avro 1.12 generates code that
+				     references org.apache.avro.JsonSchemaParser, which does not exist in the 1.11
+				     runtime the quarkus bom provides, and the generated sources then cannot compile
+				     against their own runtime. The version must match the runtime avro exactly. -->
+				<plugin>
+					<groupId>org.apache.avro</groupId>
+					<artifactId>avro-maven-plugin</artifactId>
+					<version>${avro-maven-plugin.version}</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<plugin>
 				<groupId>com.spotify.fmt</groupId>
