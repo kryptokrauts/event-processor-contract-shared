@@ -20,6 +20,7 @@
 		<surefire-plugin.version>3.2.3</surefire-plugin.version>
 		<lombok.version>1.18.30</lombok.version>
 		<beanutils.version>1.11.0</beanutils.version>
+		<commons-logging.version>1.2</commons-logging.version>
 		<build-helper-maven-plugin.version>3.5.0</build-helper-maven-plugin.version>
 		<fmt-maven-plugin.version>2.22</fmt-maven-plugin.version>
 		<postgresql-testcontainer.version>1.19.3</postgresql-testcontainer.version>
@@ -40,6 +41,16 @@
 				<groupId>commons-beanutils</groupId>
 				<artifactId>commons-beanutils</artifactId>
 				<version>${beanutils.version}</version>
+			</dependency>
+			<!-- beanutils 1.11 pulls commons-logging 1.3, which adds Log4jApiLogFactory. That class
+			     references log4j-api, which is not a dependency here, and native image initialises it
+			     at build time - the image build then fails with NoClassDefFoundError for
+			     org/apache/logging/log4j/spi/LoggerAdapter. 1.2 is the version beanutils 1.9 used and
+			     the commons-logging api is unchanged between them. -->
+			<dependency>
+				<groupId>commons-logging</groupId>
+				<artifactId>commons-logging</artifactId>
+				<version>${commons-logging.version}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.projectlombok</groupId>
