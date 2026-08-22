@@ -73,26 +73,33 @@ public class BaseMapper {
       Double royaltyPrice = royalty != null ? royalty * price : null;
       Double marketFeePrice = marketFee != null ? marketFee * price : null;
 
-      priceUSD =
-          roundTo(
-              priceUSD != null
-                  ? priceUSD
-                  : price
-                      * (BaseCache.getExchangeRateCache().containsKey(token)
-                          ? BaseCache.getExchangeRateCache().get(token)
-                          : 0));
-      Double royaltyUSD = royalty != null ? roundTo(priceUSD * royalty) : null;
-      Double marketFeeUSD = marketFee != null ? roundTo(priceUSD * marketFee) : null;
+      // an unknown exchange rate is unknown, not zero. Falling back to zero published a confident
+      // $0.00 for every price in a token we have no rate for, which is indistinguishable from a
+      // genuinely free item. _PriceInfo consumers already render a null usd as "n/a", see
+      // BaseTransformer, so null is the value this should produce
+      if (priceUSD == null) {
+        Double rate = BaseCache.getExchangeRateCache().get(token);
+        priceUSD = rate != null ? price * rate : null;
+      }
+      // roundTo unboxes its argument, so every derived value below has to be guarded rather than
+      // computed blindly once priceUSD can be null
+      priceUSD = priceUSD != null ? roundTo(priceUSD) : null;
+
+      Double royaltyUSD = priceUSD != null && royalty != null ? roundTo(priceUSD * royalty) : null;
+      Double marketFeeUSD =
+          priceUSD != null && marketFee != null ? roundTo(priceUSD * marketFee) : null;
 
       // seller receives info
       Double sellerReceivedPrice =
           roundTo(
               price * (1 - (royalty != null ? royalty : 0) - (marketFee != null ? marketFee : 0)));
       Double sellerReceivedPriceUSD =
-          roundTo(
-              priceUSD
-                  - (royaltyUSD != null ? royaltyUSD : 0)
-                  - (marketFeeUSD != null ? marketFeeUSD : 0));
+          priceUSD != null
+              ? roundTo(
+                  priceUSD
+                      - (royaltyUSD != null ? royaltyUSD : 0)
+                      - (marketFeeUSD != null ? marketFeeUSD : 0))
+              : null;
 
       return _PriceInfo.builder()
           .paymentAsset(token)
