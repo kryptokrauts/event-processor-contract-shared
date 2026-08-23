@@ -120,7 +120,21 @@ public class BaseMapper {
     return null;
   }
 
+  /**
+   * rounding an unknown value yields an unknown value.
+   *
+   * <p>This used to unbox its argument and throw. That was harmless while every usd value was a
+   * number, but #7 made them null when no exchange rate exists for the token, and the callers that
+   * hand a usd value straight to this method started returning 500 instead - NFTService#getNFTDetail
+   * on any nft whose template has a floor listing priced in such a token, for one.
+   *
+   * <p>Guarding here rather than at each of the callers: there are more than twenty of them, they
+   * are spread over several repositories, and every one of them wants the same answer.
+   */
   public static Double roundTo(Double value, int decimals) {
+    if (value == null) {
+      return null;
+    }
     return Math.round(value * Math.pow(10, decimals)) / Double.valueOf(Math.pow(10, decimals));
   }
 
