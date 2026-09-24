@@ -147,41 +147,11 @@ public class BaseMapper {
   }
 
   /*-
-   * the smallest bid atomicmarket will accept on a running auction.
-   *
-   * Mirrors the check in atomicmarket.cpp:
-   *
-   *   check((double) bid.amount >= (double) current_bid.amount * (1.0 + minimum_bid_increase))
-   *
-   * which compares raw integer units as doubles. Two details are what make this correct rather
-   * than merely close, and both were learned from implementations that got them wrong:
-   *
-   * - round into raw units, never truncate. bid * 10^precision lands just below the integer often
-   *   enough to matter - 1.0049 * 10000 is 10048.999999999998 - and a current bid read one unit
-   *   low makes every step after it too low as well.
-   *
-   * - add one raw unit. (1 + increase) is almost never exactly representable, so the contract's
-   *   own product carries a fractional part; returning the exact quotient leaves a value that
-   *   rounds back below the threshold. The one unit is the margin that survives that, and it is
-   *   the smallest amount that does.
-   *
-   * Callers supply precision and the increase themselves: those come from a token lookup and from
-   * the market config, and each service caches them differently. This is only the rule.
-   *
-   * Covered by BaseMapperTest#testNextMinBid in soon-market-api, which asserts the contract's
-   * comparison directly over a range of bids. The test cannot live beside this file: the shared
-   * sources are copied into nine consumers and most of them have no test dependencies at all.
-   *
-   * @param bid the current bid, in the token's own units
-   * @param precision the token's precision
-   * @param minBidIncrease atomicmarket's minimum_bid_increase, e.g. 0.05
+   * kept so callers that reach it through BaseMapper keep working. The rule itself lives in
+   * AtomicmarketRules, which carries no dependencies and can therefore be vendored by consumers
+   * that exclude this class - soon-market-sse-api excludes it, because BaseMapper needs BaseCache.
    */
   public static Double nextMinBid(Double bid, int precision, Double minBidIncrease) {
-    if (bid == null || minBidIncrease == null) {
-      return null;
-    }
-    double multiplier = Math.pow(10, precision);
-    long raw = Math.round(bid * multiplier);
-    return (Math.floor(raw * (1.0 + minBidIncrease)) + 1) / multiplier;
+    return AtomicmarketRules.nextMinBid(bid, precision, minBidIncrease);
   }
 }
